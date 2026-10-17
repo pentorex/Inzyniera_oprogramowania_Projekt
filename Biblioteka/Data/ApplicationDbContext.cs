@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using TwojaNazwaProjektu.Models;
+using Biblioteka.Models;
 
 namespace Biblioteka.Data;
 

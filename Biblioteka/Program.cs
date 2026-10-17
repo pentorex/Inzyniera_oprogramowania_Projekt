@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TwojaNazwaProjektu.Data;
-using TwojaNazwaProjektu.Models;
+using Biblioteka.Data;
+using Biblioteka.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,5 +38,11 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await DbInitializer.SeedRolesAndAdminAsync(services);
+}
 
 app.Run();
