@@ -1,4 +1,4 @@
-namespace TwojaNazwaProjektu.Models;
+namespace Biblioteka.Models;
 
 public class Author
 {
