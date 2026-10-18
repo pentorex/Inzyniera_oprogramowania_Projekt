@@ -6,19 +6,6 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.13">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-  </ItemGroup>
-
-</Project>
-=======
-=======
->>>>>>> 648a9c0875f08bcac85d4ba5b4f61af35a3dfc80
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.0" />
@@ -31,7 +18,3 @@
 	</ItemGroup>
 
 </Project>
-<<<<<<< HEAD
->>>>>>> Baza_Danych
-=======
->>>>>>> 648a9c0875f08bcac85d4ba5b4f61af35a3dfc80
