@@ -136,7 +136,15 @@ namespace Biblioteka.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("U¿ytkownik utworzy³ nowe konto z has³em.");
+
+                    var roleManager = HttpContext.RequestServices.GetRequiredService<RoleManager<IdentityRole>>();
+                    if (!await roleManager.RoleExistsAsync("Czytelnik"))
+                    {
+                        await roleManager.CreateAsync(new IdentityRole("Czytelnik"));
+                    }
+
                     await _userManager.AddToRoleAsync(user, "Czytelnik");
+
                     var userId = await _userManager.GetUserIdAsync(user);
                     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                     code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
