@@ -1,0 +1,84 @@
+﻿@model IEnumerable<Biblioteka.Models.UserListItemViewModel>
+
+@{
+    ViewData["Title"] = "Zarządzanie Użytkownikami";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people-fill me-2"></i>Zarządzanie Użytkownikami</h2>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Użytkownik</th>
+                        <th>Email</th>
+                        <th>Data rejestracji</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th class="text-end">Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@user.FirstName @user.LastName</strong>
+                            </td>
+                            <td>@user.Email</td>
+                            <td>@user.RegistrationDate.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>
+                                @foreach (var role in user.Roles)
+                                {
+                                    <span class="badge bg-primary me-1">@role</span>
+                                }
+                            </td>
+                            <td>
+                                @if (user.IsActive)
+                                {
+                                    <span class="badge bg-success">Aktywne</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Zablokowane</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary me-1">
+                                    <i class="bi bi-pencil me-1"></i>Edytuj
+                                </a>
+                                <form asp-action="ToggleStatus" asp-route-id="@user.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm @(user.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                        <i class="bi @(user.IsActive ? "bi-lock" : "bi-unlock") me-1"></i>
+                                        @(user.IsActive ? "Zablokuj" : "Odblokuj")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

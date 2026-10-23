@@ -25,6 +25,14 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
+                        @if (User.Identity?.IsAuthenticated == true && User.IsInRole(UserRoles.Admin))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark fw-bold" asp-controller="AdminUsers" asp-action="Index">
+                                    <i class="bi bi-people-fill me-1"></i>Zarządzanie Użytkownikami
+                                </a>
+                            </li>
+                        }
                     </ul>
                     <partial name="_LoginPartial" />
                 </div>
