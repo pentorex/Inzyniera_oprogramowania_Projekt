@@ -87,7 +87,6 @@ namespace Biblioteka.Controllers
         }
 
         // GET: Books/Edit/5
-        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -101,15 +100,17 @@ namespace Biblioteka.Controllers
                 return NotFound();
             }
 
-            PopulateSelectLists(book.AuthorId, book.CategoryId);
+            // Przygotowanie list rozwijanych dla Autorów i Kategorii
+            ViewBag.AuthorId = new SelectList(_context.Authors.OrderBy(a => a.LastName), "Id", "FullName", book.AuthorId);
+            ViewBag.CategoryId = new SelectList(_context.Categories.OrderBy(c => c.Name), "Id", "Name", book.CategoryId);
+
             return View(book);
         }
 
         // POST: Books/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ISBN,PublicationYear,Publisher,Description,CoverImageUrl,AuthorId,CategoryId")] Book book)
+        public async Task<IActionResult> Edit(int id, Book book)
         {
             if (id != book.Id)
             {
@@ -122,11 +123,12 @@ namespace Biblioteka.Controllers
                 {
                     _context.Update(book);
                     await _context.SaveChangesAsync();
-                    TempData["Success"] = "Dane książki zostały pomyślnie zaktualizowane!";
+                    TempData["SuccessMessage"] = $"Pomyślnie zaktualizowano dane książki: \"{book.Title}\".";
+                    return RedirectToAction(nameof(Index));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!BookExists(book.Id))
+                    if (!_context.Books.Any(e => e.Id == book.Id))
                     {
                         return NotFound();
                     }
@@ -135,10 +137,12 @@ namespace Biblioteka.Controllers
                         throw;
                     }
                 }
-                return RedirectToAction(nameof(Index));
             }
 
-            PopulateSelectLists(book.AuthorId, book.CategoryId);
+            // W przypadku błędu walidacji ponownie zasilamy listy rozwijane
+            ViewBag.AuthorId = new SelectList(_context.Authors.OrderBy(a => a.LastName), "Id", "FullName", book.AuthorId);
+            ViewBag.CategoryId = new SelectList(_context.Categories.OrderBy(c => c.Name), "Id", "Name", book.CategoryId);
+
             return View(book);
         }
 
