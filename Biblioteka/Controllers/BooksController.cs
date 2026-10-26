@@ -17,25 +17,44 @@ namespace Biblioteka.Controllers
             _context = context;
         }
 
-        // GET: Books (Lista książek / Katalog)
-        public async Task<IActionResult> Index(string searchString)
+        // GET: Books (Lista książek / Katalog z wyszukiwarką i filtrowaniem)
+        public async Task<IActionResult> Index(string? searchString, int? categoryId)
         {
             var booksQuery = _context.Books
                 .Include(b => b.Author)
                 .Include(b => b.Category)
+                .Include(b => b.Copies)
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(searchString))
+            // 1. Wyszukiwanie frazy tekstowej (tytuł, autor, kategoria, ISBN)
+            if (!string.IsNullOrWhiteSpace(searchString))
             {
+                var query = searchString.Trim();
                 booksQuery = booksQuery.Where(b =>
-                    b.Title.Contains(searchString) ||
-                    b.Author.FirstName.Contains(searchString) ||
-                    b.Author.LastName.Contains(searchString) ||
-                    b.ISBN.Contains(searchString));
+                    b.Title.Contains(query) ||
+                    b.Author.FirstName.Contains(query) ||
+                    b.Author.LastName.Contains(query) ||
+                    (b.Author.FirstName + " " + b.Author.LastName).Contains(query) ||
+                    b.Category.Name.Contains(query) ||
+                    b.ISBN.Contains(query));
             }
 
-            ViewData["CurrentFilter"] = searchString;
-            return View(await booksQuery.ToListAsync());
+            // 2. Filtrowanie po wybranej z listy kategorii
+            if (categoryId.HasValue && categoryId.Value > 0)
+            {
+                booksQuery = booksQuery.Where(b => b.CategoryId == categoryId.Value);
+            }
+
+            // Zachowanie filtrów i przekazanie listy kategorii do widoku
+            ViewBag.CurrentSearch = searchString;
+            ViewBag.CurrentCategoryId = categoryId;
+            ViewBag.Categories = new SelectList(
+                await _context.Categories.OrderBy(c => c.Name).ToListAsync(),
+                "Id",
+                "Name",
+                categoryId);
+
+            return View(await booksQuery.OrderBy(b => b.Title).ToListAsync());
         }
 
         // GET: Books/Details/5
@@ -87,6 +106,7 @@ namespace Biblioteka.Controllers
         }
 
         // GET: Books/Edit/5
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -100,17 +120,15 @@ namespace Biblioteka.Controllers
                 return NotFound();
             }
 
-            // Przygotowanie list rozwijanych dla Autorów i Kategorii
-            ViewBag.AuthorId = new SelectList(_context.Authors.OrderBy(a => a.LastName), "Id", "FullName", book.AuthorId);
-            ViewBag.CategoryId = new SelectList(_context.Categories.OrderBy(c => c.Name), "Id", "Name", book.CategoryId);
-
+            PopulateSelectLists(book.AuthorId, book.CategoryId);
             return View(book);
         }
 
         // POST: Books/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Book book)
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ISBN,PublicationYear,Publisher,Description,CoverImageUrl,AuthorId,CategoryId")] Book book)
         {
             if (id != book.Id)
             {
@@ -123,12 +141,12 @@ namespace Biblioteka.Controllers
                 {
                     _context.Update(book);
                     await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = $"Pomyślnie zaktualizowano dane książki: \"{book.Title}\".";
+                    TempData["Success"] = $"Pomyślnie zaktualizowano dane książki: \"{book.Title}\".";
                     return RedirectToAction(nameof(Index));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!_context.Books.Any(e => e.Id == book.Id))
+                    if (!BookExists(book.Id))
                     {
                         return NotFound();
                     }
@@ -139,10 +157,7 @@ namespace Biblioteka.Controllers
                 }
             }
 
-            // W przypadku błędu walidacji ponownie zasilamy listy rozwijane
-            ViewBag.AuthorId = new SelectList(_context.Authors.OrderBy(a => a.LastName), "Id", "FullName", book.AuthorId);
-            ViewBag.CategoryId = new SelectList(_context.Categories.OrderBy(c => c.Name), "Id", "Name", book.CategoryId);
-
+            PopulateSelectLists(book.AuthorId, book.CategoryId);
             return View(book);
         }
 
@@ -191,15 +206,16 @@ namespace Biblioteka.Controllers
             return _context.Books.Any(e => e.Id == id);
         }
 
-        // Pomocnicza metoda do dołączania autorów i kategorii do dropdownów
+        // Pomocnicza metoda do zasilania list rozwijanych autorów i kategorii
         private void PopulateSelectLists(object? selectedAuthor = null, object? selectedCategory = null)
         {
             var authors = _context.Authors
                 .Select(a => new { a.Id, FullName = a.FirstName + " " + a.LastName })
+                .OrderBy(a => a.FullName)
                 .ToList();
 
             ViewBag.AuthorId = new SelectList(authors, "Id", "FullName", selectedAuthor);
-            ViewBag.CategoryId = new SelectList(_context.Categories, "Id", "Name", selectedCategory);
+            ViewBag.CategoryId = new SelectList(_context.Categories.OrderBy(c => c.Name), "Id", "Name", selectedCategory);
         }
     }
 }
