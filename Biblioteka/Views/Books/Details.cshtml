@@ -1,0 +1,112 @@
+﻿@model Biblioteka.Models.Book
+
+@{
+    ViewData["Title"] = Model.Title;
+    var totalCopies = Model.Copies?.Count ?? 0;
+    var availableCopies = Model.Copies?.Count(c => c.Status == BookStatus.Available) ?? 0;
+}
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="Index">Katalog książek</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-primary">@(Model.Category?.Name ?? "Inne")</span>
+                        <span class="text-muted small">Rok wydania: @Model.PublicationYear</span>
+                    </div>
+
+                    <h2 class="fw-bold mb-2">@Model.Title</h2>
+                    <h5 class="text-muted mb-4">
+                        Autor: <span class="text-dark fw-semibold">@(Model.Author != null ? $"{Model.Author.FirstName} {Model.Author.LastName}" : "Nieznany")</span>
+                    </h5>
+
+                    <h6 class="fw-bold">Opis pozycji:</h6>
+                    <p class="text-secondary leading-relaxed mb-4">
+                        @(string.IsNullOrWhiteSpace(Model.Description) ? "Brak wprowadzonego opisu dla tego tytułu." : Model.Description)
+                    </p>
+
+                    <!-- Lista egzemplarzy fizycznych -->
+                    <h6 class="fw-bold mb-3">Dostępne egzemplarze w bibliotece:</h6>
+                    @if (Model.Copies == null || !Model.Copies.Any())
+                    {
+                        <div class="alert alert-warning py-2 small">
+                            Ta pozycja nie posiada jeszcze zarejestrowanych fizycznych egzemplarzy w bibliotece.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Numer egzemplarza (Sygnatura)</th>
+                                        <th>Stan / Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var copy in Model.Copies)
+                                    {
+                                        <tr>
+                                            <td><code>#@copy.Id</code></td>
+                                            <td>
+                                                @if (copy.Status == BookStatus.Available)
+                                                {
+                                                    <span class="badge bg-success">Dostępny na półce</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger">Wypożyczony / Niedostępny</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <!-- Pasek boczny z informacjami i akcjami -->
+                <div class="col-lg-4 border-start-lg ps-lg-4">
+                    <div class="card bg-light border-0 p-3 mb-3">
+                        <h6 class="fw-bold mb-3">Informacje katalogowe</h6>
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-2"><strong>ISBN:</strong> @Model.ISBN</li>
+                            <li class="mb-2"><strong>Wydawca:</strong> @(Model.Publisher ?? "Nie podano")</li>
+                            <li class="mb-2"><strong>Łącznie sztuk:</strong> @totalCopies</li>
+                            <li><strong>Dostępnych sztuk:</strong> @availableCopies</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        @if (User.Identity?.IsAuthenticated == true && availableCopies > 0)
+                        {
+                            <button class="btn btn-success">
+                                <i class="bi bi-bookmark-plus me-1"></i>Zarezerwuj tę książkę
+                            </button>
+                        }
+
+                        @if (User.IsInRole("Administrator") || User.IsInRole("Bibliotekarz"))
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil me-1"></i>Edytuj dane książki
+                            </a>
+                        }
+
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Wróć do katalogu
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
