@@ -1,0 +1,45 @@
+﻿@model Biblioteka.Models.Author
+
+@{
+    ViewData["Title"] = "Usuń Autora";
+    var bookCount = Model.Books?.Count ?? 0;
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-danger border-2">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="card-title mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Potwierdzenie usunięcia autora</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="mb-3">Czy na pewno chcesz usunąć poniższego autora z systemu?</p>
+
+                    <div class="alert alert-light border p-3 mb-3">
+                        <h5 class="fw-bold mb-1">@Model.FirstName @Model.LastName</h5>
+                        <p class="text-muted small mb-0">Przypisane pozycje: <strong>@bookCount</strong></p>
+                    </div>
+
+                    @if (bookCount > 0)
+                    {
+                        <div class="alert alert-warning small">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            <strong>Uwaga:</strong> Ten autor posiada przypisane książki w katalogu. Przed usunięciem autora musisz zmienić autora w książkach lub usunąć te książki.
+                        </div>
+                    }
+
+                    <form asp-action="Delete" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-outline-secondary">Anuluj</a>
+                            <button type="submit" class="btn btn-danger" @(bookCount > 0 ? "disabled" : "")>
+                                <i class="bi bi-trash me-1"></i>Usuń autora
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

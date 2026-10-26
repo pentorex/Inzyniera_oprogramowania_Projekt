@@ -38,12 +38,12 @@ public class Book
     [Required(ErrorMessage = "Wybierz autora.")]
     [Display(Name = "Autor")]
     public int AuthorId { get; set; }
-    public Author Author { get; set; } = null!;
+    public Author? Author { get; set; } = null!;
 
     [Required(ErrorMessage = "Wybierz kategoriê.")]
     [Display(Name = "Kategoria")]
     public int CategoryId { get; set; }
-    public Category Category { get; set; } = null!;
+    public Category? Category { get; set; } = null!;
 
     public ICollection<BookCopy> Copies { get; set; } = new List<BookCopy>();
 }
