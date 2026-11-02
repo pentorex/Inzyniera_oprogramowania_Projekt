@@ -14,10 +14,24 @@
     </div>
 
     <!-- Wyszukiwarka -->
-    <form asp-action="Index" method="get" class="mb-4">
-        <div class="input-group">
-            <input type="text" name="searchString" class="form-control" placeholder="Szukaj po tytule lub nazwisku autora..." />
-            <button type="submit" class="btn btn-outline-primary">Szukaj</button>
+    <form asp-action="Index" method="get" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="searchString" value="@ViewBag.CurrentSearch" class="form-control" placeholder="Szukaj po tytule, autorze, ISBN..." />
+        </div>
+        <div class="col-md-3">
+            <select name="categoryId" class="form-select" asp-items="ViewBag.Categories">
+                <option value="">-- Wszystkie kategorie --</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="year" class="form-select" asp-items="ViewBag.Years">
+                <option value="">-- Wszystkie lata --</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-search me-1"></i>Filtruj
+            </button>
         </div>
     </form>
 
