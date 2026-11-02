@@ -9,7 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Brak connection stringa.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sqlServerOptions =>
+        sqlServerOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,                       // Maksymalna liczba prób ponowienia
+            maxRetryDelay: TimeSpan.FromSeconds(30), // Maksymalny czas oczekiwania między próbami
+            errorNumbersToAdd: null                 // Opcjonalne dodatkowe kody błędów
+        )
+    ));
 
 // Rejestracja ASP.NET Core Identity z obs�ug� r�l
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => {

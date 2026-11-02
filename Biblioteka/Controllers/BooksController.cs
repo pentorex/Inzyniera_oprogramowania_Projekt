@@ -18,7 +18,7 @@ namespace Biblioteka.Controllers
         }
 
         // GET: Books (Lista książek / Katalog z wyszukiwarką i filtrowaniem)
-        public async Task<IActionResult> Index(string? searchString, int? categoryId)
+        public async Task<IActionResult> Index(string? searchString, int? categoryId, int? year)
         {
             var booksQuery = _context.Books
                 .Include(b => b.Author)
@@ -44,6 +44,17 @@ namespace Biblioteka.Controllers
             {
                 booksQuery = booksQuery.Where(b => b.CategoryId == categoryId.Value);
             }
+
+            if (year.HasValue && year.Value > 0)
+            {
+                booksQuery = booksQuery.Where(b => b.PublicationYear == year.Value);
+            }
+
+            var availableYears = await _context.Books
+            .Select(b => b.PublicationYear)
+            .Distinct()
+            .OrderByDescending(y => y)
+            .ToListAsync();
 
             // Zachowanie filtrów i przekazanie listy kategorii do widoku
             ViewBag.CurrentSearch = searchString;
