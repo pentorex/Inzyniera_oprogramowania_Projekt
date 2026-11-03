@@ -46,4 +46,10 @@ public class Book
     public Category? Category { get; set; } = null!;
 
     public ICollection<BookCopy> Copies { get; set; } = new List<BookCopy>();
+
+    [Display(Name = "Liczba egzemplarzy")]
+    public int TotalCopiesCount => Copies?.Count ?? 0;
+
+    [Display(Name = "Dostêpne egzemplarze")]
+    public int AvailableCopiesCount => Copies?.Count(c => c.Status == BookStatus.Available) ?? 0;
 }
