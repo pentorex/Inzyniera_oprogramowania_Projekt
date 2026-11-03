@@ -17,8 +17,13 @@ namespace Biblioteka.Controllers
             _context = context;
         }
 
-        // GET: Books (Lista książek / Katalog z wyszukiwarką i filtrowaniem)
-        public async Task<IActionResult> Index(string? searchString, int? categoryId)
+        // GET: Books (Lista książek / Katalog z filtrowaniem dynamicznym)
+        public async Task<IActionResult> Index(
+            string? searchString,
+            int? categoryId,
+            int? authorId,
+            int? yearFrom,
+            int? yearTo)
         {
             var booksQuery = _context.Books
                 .Include(b => b.Author)
@@ -26,35 +31,74 @@ namespace Biblioteka.Controllers
                 .Include(b => b.Copies)
                 .AsQueryable();
 
-            // 1. Wyszukiwanie frazy tekstowej (tytuł, autor, kategoria, ISBN)
+            // 1. Wyszukiwanie tekstowe (tytuł, imię/nazwisko autora, kategoria, ISBN)
             if (!string.IsNullOrWhiteSpace(searchString))
             {
                 var query = searchString.Trim();
                 booksQuery = booksQuery.Where(b =>
                     b.Title.Contains(query) ||
-                    b.Author.FirstName.Contains(query) ||
-                    b.Author.LastName.Contains(query) ||
-                    (b.Author.FirstName + " " + b.Author.LastName).Contains(query) ||
-                    b.Category.Name.Contains(query) ||
+                    (b.Author != null && (
+                        b.Author.FirstName.Contains(query) ||
+                        b.Author.LastName.Contains(query) ||
+                        (b.Author.FirstName + " " + b.Author.LastName).Contains(query)
+                    )) ||
+                    (b.Category != null && b.Category.Name.Contains(query)) ||
                     b.ISBN.Contains(query));
             }
 
-            // 2. Filtrowanie po wybranej z listy kategorii
+            // 2. Filtr po kategorii
             if (categoryId.HasValue && categoryId.Value > 0)
             {
                 booksQuery = booksQuery.Where(b => b.CategoryId == categoryId.Value);
             }
 
-            // Zachowanie filtrów i przekazanie listy kategorii do widoku
-            ViewBag.CurrentSearch = searchString;
-            ViewBag.CurrentCategoryId = categoryId;
+            // 3. Filtr po autorze
+            if (authorId.HasValue && authorId.Value > 0)
+            {
+                booksQuery = booksQuery.Where(b => b.AuthorId == authorId.Value);
+            }
+
+            // 4. Widełki czasowe (Rok wydania od - do)
+            if (yearFrom.HasValue)
+            {
+                booksQuery = booksQuery.Where(b => b.PublicationYear >= yearFrom.Value);
+            }
+
+            if (yearTo.HasValue)
+            {
+                booksQuery = booksQuery.Where(b => b.PublicationYear <= yearTo.Value);
+            }
+
+            var books = await booksQuery.OrderBy(b => b.Title).ToListAsync();
+
+            // Jeśli zapytanie przesyła nagłówek AJAX (live search), zwracamy tylko samą tabelę
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return PartialView("_BookListPartial", books);
+            }
+
+            // Zasilenie list rozwijanych dla pierwszego pełnego załadowania widoku
+            var authors = await _context.Authors
+                .Select(a => new { a.Id, FullName = a.FirstName + " " + a.LastName })
+                .OrderBy(a => a.FullName)
+                .ToListAsync();
+
             ViewBag.Categories = new SelectList(
                 await _context.Categories.OrderBy(c => c.Name).ToListAsync(),
                 "Id",
                 "Name",
                 categoryId);
 
-            return View(await booksQuery.OrderBy(b => b.Title).ToListAsync());
+            ViewBag.Authors = new SelectList(authors, "Id", "FullName", authorId);
+
+            // Przekazanie aktualnych stanów filtrów
+            ViewBag.CurrentSearch = searchString;
+            ViewBag.CurrentCategoryId = categoryId;
+            ViewBag.CurrentAuthorId = authorId;
+            ViewBag.CurrentYearFrom = yearFrom;
+            ViewBag.CurrentYearTo = yearTo;
+
+            return View(books);
         }
 
         // GET: Books/Details/5
@@ -93,6 +137,11 @@ namespace Biblioteka.Controllers
         [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Create([Bind("Id,Title,ISBN,PublicationYear,Publisher,Description,CoverImageUrl,AuthorId,CategoryId")] Book book)
         {
+            // Pomijamy walidację obiektów nawigacyjnych, aby ModelState nie odrzucał formularza
+            ModelState.Remove("Author");
+            ModelState.Remove("Category");
+            ModelState.Remove("Copies");
+
             if (ModelState.IsValid)
             {
                 _context.Add(book);
@@ -134,6 +183,11 @@ namespace Biblioteka.Controllers
             {
                 return NotFound();
             }
+
+            // Pomijamy walidację obiektów nawigacyjnych
+            ModelState.Remove("Author");
+            ModelState.Remove("Category");
+            ModelState.Remove("Copies");
 
             if (ModelState.IsValid)
             {

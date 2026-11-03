@@ -1,0 +1,72 @@
+﻿@model IEnumerable<Biblioteka.Models.Book>
+@using Biblioteka.Constants
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Tytuł</th>
+                <th>Autor</th>
+                <th>Kategoria</th>
+                <th>Rok</th>
+                <th>Egzemplarze</th>
+                <th class="text-end">Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                        Nie znaleziono pozycji spełniających podane kryteria.
+                    </td>
+                </tr>
+            }
+            @foreach (var book in Model)
+            {
+                var totalCopies = book.Copies?.Count ?? 0;
+
+                <tr>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@book.Id" class="fw-bold text-decoration-none text-dark">
+                            @book.Title
+                        </a>
+                        <div class="text-muted small">ISBN: @book.ISBN</div>
+                    </td>
+                    <td>@(book.Author != null ? $"{book.Author.FirstName} {book.Author.LastName}" : "Brak danych")</td>
+                    <td>
+                        <span class="badge bg-secondary">@(book.Category?.Name ?? "Brak")</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">@book.PublicationYear</span>
+                    </td>
+                    <td>
+                        @if (totalCopies == 0)
+                        {
+                            <span class="badge bg-secondary">Brak w bazie</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Na stanie: @totalCopies szt.</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <a asp-action="Details" asp-route-id="@book.Id" class="btn btn-sm btn-outline-info me-1" title="Szczegóły">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        @if (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian))
+                        {
+                            <a asp-action="Edit" asp-route-id="@book.Id" class="btn btn-sm btn-outline-primary me-1" title="Edytuj">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@book.Id" class="btn btn-sm btn-outline-danger" title="Usuń">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
