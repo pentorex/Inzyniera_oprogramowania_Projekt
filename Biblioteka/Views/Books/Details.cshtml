@@ -1,9 +1,11 @@
 ﻿@model Biblioteka.Models.Book
+@using Biblioteka.Constants
 
 @{
     ViewData["Title"] = Model.Title;
     var totalCopies = Model.Copies?.Count ?? 0;
     var availableCopies = Model.Copies?.Count(c => c.Status == BookStatus.Available) ?? 0;
+    var isStaff = User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian);
 }
 
 <div class="container py-4">
@@ -13,6 +15,22 @@
             <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
         </ol>
     </nav>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-4">
@@ -34,7 +52,16 @@
                     </p>
 
                     <!-- Lista egzemplarzy fizycznych -->
-                    <h6 class="fw-bold mb-3">Dostępne egzemplarze w bibliotece:</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0">Dostępne egzemplarze w bibliotece:</h6>
+                        @if (isStaff)
+                        {
+                            <a asp-controller="BookCopies" asp-action="Create" asp-route-bookId="@Model.Id" class="btn btn-sm btn-success">
+                                <i class="bi bi-plus-circle me-1"></i>Dodaj egzemplarz
+                            </a>
+                        }
+                    </div>
+
                     @if (Model.Copies == null || !Model.Copies.Any())
                     {
                         <div class="alert alert-warning py-2 small">
@@ -47,25 +74,73 @@
                             <table class="table table-sm table-bordered align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Numer egzemplarza (Sygnatura)</th>
-                                        <th>Stan / Status</th>
+                                        <th>Nr inwentarzowy</th>
+                                        <th>Stan</th>
+                                        <th>Status</th>
+                                        <th>Uwagi</th>
+                                        @if (isStaff)
+                                        {
+                                            <th class="text-end" style="width: 90px;">Akcje</th>
+                                        }
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var copy in Model.Copies)
                                     {
                                         <tr>
-                                            <td><code>#@copy.Id</code></td>
+                                            <td><code>@copy.InventoryNumber</code></td>
                                             <td>
-                                                @if (copy.Status == BookStatus.Available)
+                                                @switch (copy.Condition)
                                                 {
-                                                    <span class="badge bg-success">Dostępny na półce</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-danger">Wypożyczony / Niedostępny</span>
+                                                    case BookCondition.New:
+                                                        <span class="badge bg-info text-dark">Nowa</span>
+                                                        break;
+                                                    case BookCondition.Good:
+                                                        <span class="badge bg-secondary">Dobra</span>
+                                                        break;
+                                                    case BookCondition.Damaged:
+                                                        <span class="badge bg-warning text-dark">Uszkodzona</span>
+                                                        break;
+                                                    case BookCondition.Destroyed:
+                                                        <span class="badge bg-dark">Zniszczona</span>
+                                                        break;
                                                 }
                                             </td>
+                                            <td>
+                                                @switch (copy.Status)
+                                                {
+                                                    case BookStatus.Available:
+                                                        <span class="badge bg-success">Dostępny na półce</span>
+                                                        break;
+                                                    case BookStatus.Reserved:
+                                                        <span class="badge bg-warning text-dark">Zarezerwowany</span>
+                                                        break;
+                                                    case BookStatus.Borrowed:
+                                                        <span class="badge bg-danger">Wypożyczony</span>
+                                                        break;
+                                                    case BookStatus.Maintenance:
+                                                        <span class="badge bg-secondary">W konserwacji</span>
+                                                        break;
+                                                    case BookStatus.Lost:
+                                                        <span class="badge bg-dark">Zagubiony</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td>@(string.IsNullOrWhiteSpace(copy.Comments) ? "Brak" : copy.Comments)</td>
+                                            @if (isStaff)
+                                            {
+                                                <td class="text-end">
+                                                    <a asp-controller="BookCopies" asp-action="Edit" asp-route-id="@copy.Id" class="btn btn-sm btn-outline-primary py-0 px-1" title="Edytuj egzemplarz">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                    <form asp-controller="BookCopies" asp-action="Delete" asp-route-id="@copy.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć ten egzemplarz?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Usuń egzemplarz">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            }
                                         </tr>
                                     }
                                 </tbody>
@@ -94,7 +169,7 @@
                             </button>
                         }
 
-                        @if (User.IsInRole("Administrator") || User.IsInRole("Bibliotekarz"))
+                        @if (isStaff)
                         {
                             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">
                                 <i class="bi bi-pencil me-1"></i>Edytuj dane książki
