@@ -7,7 +7,7 @@
             <tr>
                 <th>Tytuł</th>
                 <th>Autor</th>
-                <th>Kategoria</th>
+                <th>Kategorie</th>
                 <th>Rok</th>
                 <th>Egzemplarze</th>
                 <th class="text-end">Akcje</th>
@@ -36,7 +36,17 @@
                     </td>
                     <td>@(book.Author != null ? $"{book.Author.FirstName} {book.Author.LastName}" : "Brak danych")</td>
                     <td>
-                        <span class="badge bg-secondary">@(book.Category?.Name ?? "Brak")</span>
+                        @if (book.Categories != null && book.Categories.Any())
+                        {
+                            @foreach (var category in book.Categories)
+                            {
+                                <span class="badge bg-secondary me-1">@category.Name</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="badge bg-light text-dark border">Brak</span>
+                        }
                     </td>
                     <td>
                         <span class="badge bg-light text-dark border">@book.PublicationYear</span>
