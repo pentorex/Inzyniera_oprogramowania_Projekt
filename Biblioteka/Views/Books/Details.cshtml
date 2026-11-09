@@ -37,7 +37,17 @@
             <div class="row g-4">
                 <div class="col-lg-8">
                     <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-primary">@(Model.Category?.Name ?? "Inne")</span>
+                        @if (Model.Categories != null && Model.Categories.Any())
+                        {
+                            @foreach (var cat in Model.Categories)
+                            {
+                                <span class="badge bg-primary me-1">@cat.Name</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Brak kategorii</span>
+                        }
                         <span class="text-muted small">Rok wydania: @Model.PublicationYear</span>
                     </div>
 

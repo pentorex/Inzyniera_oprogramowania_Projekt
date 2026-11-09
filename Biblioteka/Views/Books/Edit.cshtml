@@ -2,6 +2,9 @@
 
 @{
     ViewData["Title"] = "Edycja książki";
+    var currentSelectedIds = ViewBag.SelectedCategoryIds as int[]
+                             ?? Model.Categories?.Select(c => c.Id).ToArray()
+                             ?? Array.Empty<int>();
 }
 
 <div class="container py-4">
@@ -28,7 +31,8 @@
                         <!-- Ukryty klucz główny -->
                         <input type="hidden" asp-for="Id" />
 
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small" role="alert"></div>
+                        <!-- Podsumowanie błędów walidacji -->
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
                         <!-- Tytuł -->
                         <div class="mb-3">
@@ -37,7 +41,7 @@
                             <span asp-validation-for="Title" class="text-danger small"></span>
                         </div>
 
-                        <!-- Autor i Kategoria -->
+                        <!-- Autor i Kategorie -->
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label asp-for="AuthorId" class="form-label fw-bold">Autor</label>
@@ -46,12 +50,33 @@
                                 </select>
                                 <span asp-validation-for="AuthorId" class="text-danger small"></span>
                             </div>
+
                             <div class="col-md-6">
-                                <label asp-for="CategoryId" class="form-label fw-bold">Kategoria</label>
-                                <select asp-for="CategoryId" class="form-select" asp-items="ViewBag.CategoryId">
-                                    <option value="">-- Wybierz kategorię --</option>
-                                </select>
-                                <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                                <label class="form-label fw-bold">Kategorie</label>
+                                <div class="border rounded p-3 bg-light" style="max-height: 180px; overflow-y: auto;">
+                                    @if (ViewBag.CategoriesList != null)
+                                    {
+                                        foreach (var category in (IEnumerable<Biblioteka.Models.Category>)ViewBag.CategoriesList)
+                                        {
+                                            var isChecked = currentSelectedIds.Contains(category.Id);
+                                            <div class="form-check">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       name="selectedCategoryIds"
+                                                       value="@category.Id"
+                                                       id="cat_@category.Id"
+                                                @(isChecked ? "checked" : "") />
+                                                <label class="form-check-label" for="cat_@category.Id">
+                                                    @category.Name
+                                                </label>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Brak dostępnych kategorii.</span>
+                                    }
+                                </div>
                             </div>
                         </div>
 
@@ -72,6 +97,13 @@
                                 <input asp-for="Publisher" class="form-control" placeholder="Nazwa wydawnictwa" />
                                 <span asp-validation-for="Publisher" class="text-danger small"></span>
                             </div>
+                        </div>
+
+                        <!-- Adres URL okładki -->
+                        <div class="mb-3">
+                            <label asp-for="CoverImageUrl" class="form-label fw-bold">Adres URL okładki</label>
+                            <input asp-for="CoverImageUrl" class="form-control" placeholder="https://example.com/okladka.jpg" />
+                            <span asp-validation-for="CoverImageUrl" class="text-danger small"></span>
                         </div>
 
                         <!-- Opis -->

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace Biblioteka.Models;
 
@@ -34,17 +35,18 @@ public class Book
     [Display(Name = "Adres URL ok³adki")]
     public string CoverImageUrl { get; set; } = string.Empty;
 
-    // Klucze obce i relacje
     [Required(ErrorMessage = "Wybierz autora.")]
     [Display(Name = "Autor")]
     public int AuthorId { get; set; }
+
+    [ValidateNever]
     public Author? Author { get; set; } = null!;
 
-    [Required(ErrorMessage = "Wybierz kategoriê.")]
-    [Display(Name = "Kategoria")]
-    public int CategoryId { get; set; }
-    public Category? Category { get; set; } = null!;
+    [ValidateNever]
+    [Display(Name = "Kategorie")]
+    public ICollection<Category> Categories { get; set; } = new List<Category>();
 
+    [ValidateNever]
     public ICollection<BookCopy> Copies { get; set; } = new List<BookCopy>();
 
     [Display(Name = "Liczba egzemplarzy")]
