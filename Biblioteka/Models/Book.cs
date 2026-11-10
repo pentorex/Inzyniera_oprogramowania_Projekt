@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace Biblioteka.Models;
@@ -33,8 +34,9 @@ public class Book
 
     [Url(ErrorMessage = "Wprowadü poprawny adres URL do ok≥adki.")]
     [Display(Name = "Adres URL ok≥adki")]
-    public string CoverImageUrl { get; set; } = string.Empty;
+    public string? CoverImageUrl { get; set; }
 
+    // --- AUTOR ---
     [Required(ErrorMessage = "Wybierz autora.")]
     [Display(Name = "Autor")]
     public int AuthorId { get; set; }
@@ -42,10 +44,16 @@ public class Book
     [ValidateNever]
     public Author? Author { get; set; } = null!;
 
+    // --- KATEGORIE (Kolekcja wymagana przez BooksController) ---
     [ValidateNever]
     [Display(Name = "Kategorie")]
     public ICollection<Category> Categories { get; set; } = new List<Category>();
 
+    // W≥aúciwoúÊ pomocnicza dla widokÛw (nie tworzy nowej kolumny w bazie danych)
+    [NotMapped]
+    public Category? Category => Categories?.FirstOrDefault();
+
+    // --- EGZEMPLARZE ---
     [ValidateNever]
     public ICollection<BookCopy> Copies { get; set; } = new List<BookCopy>();
 

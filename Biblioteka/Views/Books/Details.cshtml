@@ -1,11 +1,8 @@
 ﻿@model Biblioteka.Models.Book
-@using Biblioteka.Constants
 
 @{
     ViewData["Title"] = Model.Title;
     var totalCopies = Model.Copies?.Count ?? 0;
-    var availableCopies = Model.Copies?.Count(c => c.Status == BookStatus.Available) ?? 0;
-    var isStaff = User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian);
 }
 
 <div class="container py-4">
@@ -16,39 +13,14 @@
         </ol>
     </nav>
 
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-
     <div class="card shadow-sm border-0">
         <div class="card-body p-4">
             <div class="row g-4">
+                <!-- Lewa kolumna: Informacje o książce, opis i egzemplarze -->
                 <div class="col-lg-8">
                     <div class="d-flex align-items-center gap-2 mb-2">
-                        @if (Model.Categories != null && Model.Categories.Any())
-                        {
-                            @foreach (var cat in Model.Categories)
-                            {
-                                <span class="badge bg-primary me-1">@cat.Name</span>
-                            }
-                        }
-                        else
-                        {
-                            <span class="badge bg-secondary">Brak kategorii</span>
-                        }
-                        <span class="text-muted small">Rok wydania: @Model.PublicationYear</span>
+                        <span class="badge bg-primary">@(Model.Category?.Name ?? "Inne")</span>
+                        <span class="badge bg-light text-dark border">Rok wydania: @Model.PublicationYear</span>
                     </div>
 
                     <h2 class="fw-bold mb-2">@Model.Title</h2>
@@ -57,25 +29,16 @@
                     </h5>
 
                     <h6 class="fw-bold">Opis pozycji:</h6>
-                    <p class="text-secondary leading-relaxed mb-4">
+                    <p class="text-secondary leading-relaxed mb-4" style="white-space: pre-line;">
                         @(string.IsNullOrWhiteSpace(Model.Description) ? "Brak wprowadzonego opisu dla tego tytułu." : Model.Description)
                     </p>
 
-                    <!-- Lista egzemplarzy fizycznych -->
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="fw-bold mb-0">Dostępne egzemplarze w bibliotece:</h6>
-                        @if (isStaff)
-                        {
-                            <a asp-controller="BookCopies" asp-action="Create" asp-route-bookId="@Model.Id" class="btn btn-sm btn-success">
-                                <i class="bi bi-plus-circle me-1"></i>Dodaj egzemplarz
-                            </a>
-                        }
-                    </div>
-
+                    <!-- Lista fizycznych egzemplarzy w bibliotece -->
+                    <h6 class="fw-bold mb-3">Zarejestrowane egzemplarze:</h6>
                     @if (Model.Copies == null || !Model.Copies.Any())
                     {
                         <div class="alert alert-warning py-2 small">
-                            Ta pozycja nie posiada jeszcze zarejestrowanych fizycznych egzemplarzy w bibliotece.
+                            <i class="bi bi-info-circle me-1"></i>Ta pozycja nie posiada jeszcze zarejestrowanych fizycznych egzemplarzy w bibliotece.
                         </div>
                     }
                     else
@@ -84,73 +47,18 @@
                             <table class="table table-sm table-bordered align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Nr inwentarzowy</th>
-                                        <th>Stan</th>
-                                        <th>Status</th>
-                                        <th>Uwagi</th>
-                                        @if (isStaff)
-                                        {
-                                            <th class="text-end" style="width: 90px;">Akcje</th>
-                                        }
+                                        <th>Numer egzemplarza (Sygnatura)</th>
+                                        <th>Status w bazie</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var copy in Model.Copies)
                                     {
                                         <tr>
-                                            <td><code>@copy.InventoryNumber</code></td>
+                                            <td><code>#@copy.Id</code></td>
                                             <td>
-                                                @switch (copy.Condition)
-                                                {
-                                                    case BookCondition.New:
-                                                        <span class="badge bg-info text-dark">Nowa</span>
-                                                        break;
-                                                    case BookCondition.Good:
-                                                        <span class="badge bg-secondary">Dobra</span>
-                                                        break;
-                                                    case BookCondition.Damaged:
-                                                        <span class="badge bg-warning text-dark">Uszkodzona</span>
-                                                        break;
-                                                    case BookCondition.Destroyed:
-                                                        <span class="badge bg-dark">Zniszczona</span>
-                                                        break;
-                                                }
+                                                <span class="badge bg-secondary">Zarejestrowany na stanie</span>
                                             </td>
-                                            <td>
-                                                @switch (copy.Status)
-                                                {
-                                                    case BookStatus.Available:
-                                                        <span class="badge bg-success">Dostępny na półce</span>
-                                                        break;
-                                                    case BookStatus.Reserved:
-                                                        <span class="badge bg-warning text-dark">Zarezerwowany</span>
-                                                        break;
-                                                    case BookStatus.Borrowed:
-                                                        <span class="badge bg-danger">Wypożyczony</span>
-                                                        break;
-                                                    case BookStatus.Maintenance:
-                                                        <span class="badge bg-secondary">W konserwacji</span>
-                                                        break;
-                                                    case BookStatus.Lost:
-                                                        <span class="badge bg-dark">Zagubiony</span>
-                                                        break;
-                                                }
-                                            </td>
-                                            <td>@(string.IsNullOrWhiteSpace(copy.Comments) ? "Brak" : copy.Comments)</td>
-                                            @if (isStaff)
-                                            {
-                                                <td class="text-end">
-                                                    <a asp-controller="BookCopies" asp-action="Edit" asp-route-id="@copy.Id" class="btn btn-sm btn-outline-primary py-0 px-1" title="Edytuj egzemplarz">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </a>
-                                                    <form asp-controller="BookCopies" asp-action="Delete" asp-route-id="@copy.Id" method="post" class="d-inline" onsubmit="return confirm('Czy na pewno chcesz usunąć ten egzemplarz?');">
-                                                        @Html.AntiForgeryToken()
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Usuń egzemplarz">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </form>
-                                                </td>
-                                            }
                                         </tr>
                                     }
                                 </tbody>
@@ -159,27 +67,42 @@
                     }
                 </div>
 
-                <!-- Pasek boczny z informacjami i akcjami -->
+                <!-- Prawa kolumna: Miniaturka okładki, metadane i przyciski -->
                 <div class="col-lg-4 border-start-lg ps-lg-4">
+                    <!-- Miniaturka okładki z linku -->
+                    <div class="text-center mb-3">
+                        @if (!string.IsNullOrWhiteSpace(Model.CoverImageUrl))
+                        {
+                            <div class="position-relative d-inline-block w-100">
+                                <img src="@Model.CoverImageUrl"
+                                     alt="Okładka @Model.Title"
+                                     class="img-fluid rounded shadow-sm border w-100"
+                                     style="max-height: 380px; object-fit: contain; background-color: #f8f9fa;"
+                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'border rounded p-4 text-center text-muted bg-light\'><i class=\'bi bi-image fs-1 d-block mb-2\'></i>Nie udało się wczytać okładki</div>';" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="border rounded p-4 text-center text-muted bg-light">
+                                <i class="bi bi-book fs-1 d-block mb-2 text-secondary"></i>
+                                <span class="small">Brak dodanej miniatury okładki</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Panel z informacjami katalogowymi -->
                     <div class="card bg-light border-0 p-3 mb-3">
                         <h6 class="fw-bold mb-3">Informacje katalogowe</h6>
                         <ul class="list-unstyled mb-0 small">
                             <li class="mb-2"><strong>ISBN:</strong> @Model.ISBN</li>
                             <li class="mb-2"><strong>Wydawca:</strong> @(Model.Publisher ?? "Nie podano")</li>
-                            <li class="mb-2"><strong>Łącznie sztuk:</strong> @totalCopies</li>
-                            <li><strong>Dostępnych sztuk:</strong> @availableCopies</li>
+                            <li><strong>Łącznie sztuk:</strong> @totalCopies</li>
                         </ul>
                     </div>
 
+                    <!-- Przyciski akcji -->
                     <div class="d-grid gap-2">
-                        @if (User.Identity?.IsAuthenticated == true && availableCopies > 0)
-                        {
-                            <button class="btn btn-success">
-                                <i class="bi bi-bookmark-plus me-1"></i>Zarezerwuj tę książkę
-                            </button>
-                        }
-
-                        @if (isStaff)
+                        @if (User.IsInRole("Administrator") || User.IsInRole("Bibliotekarz"))
                         {
                             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">
                                 <i class="bi bi-pencil me-1"></i>Edytuj dane książki
