@@ -1,0 +1,124 @@
+﻿@model IEnumerable<Biblioteka.Models.Borrowing>
+@using Biblioteka.Constants
+
+@{
+    ViewData["Title"] = "Zarządzanie wypożyczeniami";
+    string currentSearch = ViewBag.CurrentSearch as string ?? "";
+    string currentStatus = ViewBag.CurrentStatus as string ?? "";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-journal-text me-2 text-primary"></i>Zarządzanie wypożyczeniami</h2>
+            <p class="text-muted mb-0">Przeszukuj historię i aktywne wypożyczenia czytelników</p>
+        </div>
+        <a asp-action="Create" class="btn btn-success">
+            <i class="bi bi-plus-lg me-1"></i>Nowe wypożyczenie
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Panel wyszukiwania i filtrów -->
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body p-4">
+            <div id="filterForm" class="row g-3">
+                <div class="col-md-6 lg-5">
+                    <label class="form-label fw-bold small text-muted">Fraza (tytuł, nr inwentarzowy, e-mail)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchString" name="searchString" class="form-control"
+                               placeholder="Szukaj wypożyczenia..." value="@currentSearch" autocomplete="off" />
+                    </div>
+                </div>
+
+                <div class="col-md-4 lg-4">
+                    <label class="form-label fw-bold small text-muted">Status</label>
+                    <select id="statusFilter" name="statusFilter" class="form-select">
+                        <option value="">-- Wszystkie statusy --</option>
+                        <option value="active" selected="@(currentStatus == "active")">Aktywne wypożyczenia</option>
+                        <option value="overdue" selected="@(currentStatus == "overdue")">Przeterminowane</option>
+                        <option value="returned" selected="@(currentStatus == "returned")">Zwrócone</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" id="btnReset" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Wyczyść
+                    </button>
+                </div>
+
+                <div class="col-12">
+                    <span id="loadingIndicator" class="text-primary small d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        Wyszukiwanie wypożyczeń...
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela podmieniana przez AJAX -->
+    <div class="card shadow-sm border-0">
+        <div id="borrowingsTableContainer">
+            @await Html.PartialAsync("_BorrowingListPartial", Model)
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.getElementById("searchString");
+            const statusSelect = document.getElementById("statusFilter");
+            const btnReset = document.getElementById("btnReset");
+            const container = document.getElementById("borrowingsTableContainer");
+            const loader = document.getElementById("loadingIndicator");
+
+            let debounceTimer = null;
+
+            function fetchFilteredBorrowings() {
+                loader.classList.remove("d-none");
+
+                const params = new URLSearchParams({
+                    searchString: searchInput.value,
+                    statusFilter: statusSelect.value
+                });
+
+                fetch(`@Url.Action("Index", "Borrowings")?${params.toString()}`, {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    container.innerHTML = html;
+                })
+                .finally(() => {
+                    loader.classList.add("d-none");
+                });
+            }
+
+            function triggerDebouncedSearch() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(fetchFilteredBorrowings, 300);
+            }
+
+            searchInput.addEventListener("input", triggerDebouncedSearch);
+            statusSelect.addEventListener("change", fetchFilteredBorrowings);
+
+            btnReset.addEventListener("click", function () {
+                searchInput.value = "";
+                statusSelect.value = "";
+                fetchFilteredBorrowings();
+            });
+        });
+    </script>
+}

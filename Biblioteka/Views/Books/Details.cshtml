@@ -102,8 +102,13 @@
 
                     <!-- Przyciski akcji -->
                     <div class="d-grid gap-2">
-                        @if (User.IsInRole("Administrator") || User.IsInRole("Bibliotekarz"))
+                        @if (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian))
                         {
+                            <!-- Przycisk dodawania fizycznego egzemplarza -->
+                            <a asp-controller="BookCopies" asp-action="Create" asp-route-bookId="@Model.Id" class="btn btn-success">
+                                <i class="bi bi-plus-circle me-1"></i>Dodaj egzemplarz
+                            </a>
+
                             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">
                                 <i class="bi bi-pencil me-1"></i>Edytuj dane książki
                             </a>
