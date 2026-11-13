@@ -1,0 +1,73 @@
+﻿@model IEnumerable<Biblioteka.Models.Borrowing>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Tytuł książki</th>
+                <th>Nr inwentarzowy</th>
+                <th>Czytelnik</th>
+                <th>Data wypożyczenia</th>
+                <th>Termin zwrotu</th>
+                <th>Data zwrotu</th>
+                <th>Kara</th>
+                <th class="text-end">Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                        Nie znaleziono wypożyczeń spełniających kryteria.
+                    </td>
+                </tr>
+            }
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td><strong>@item.BookCopy?.Book?.Title</strong></td>
+                    <td><code>@item.BookCopy?.InventoryNumber</code></td>
+                    <td>@item.User?.Email</td>
+                    <td>@item.BorrowDate.ToLocalTime().ToShortDateString()</td>
+                    <td>
+                        @item.DueDate.ToLocalTime().ToShortDateString()
+                        @if (item.ReturnDate == null && DateTime.UtcNow > item.DueDate)
+                        {
+                            <span class="badge bg-danger ms-1">Przeterminowana</span>
+                        }
+                    </td>
+                    <td>
+                        @(item.ReturnDate.HasValue? item.ReturnDate.Value.ToLocalTime().ToShortDateString() : "W trakcie wypożyczenia")
+                    </td>
+                    <td>
+                        @if (item.FineAmount > 0 || (item.ReturnDate == null && DateTime.UtcNow > item.DueDate))
+                        {
+                            <span class="text-danger fw-bold">@item.CalculateFine() zł</span>
+                        }
+                        else
+                        {
+                            <span class="text-success">0.00 zł</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (item.ReturnDate == null)
+                        {
+                            <form asp-action="ReturnBook" asp-route-id="@item.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Czy na pewno chcesz przyjąć zwrot tej książki?');">
+                                    <i class="bi bi-box-arrow-in-down-left me-1"></i>Zwróć
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Zwrócono</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

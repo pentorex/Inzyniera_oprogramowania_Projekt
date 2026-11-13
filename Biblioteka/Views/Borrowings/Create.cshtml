@@ -1,0 +1,212 @@
+﻿@model Biblioteka.Models.Borrowing
+
+@{
+    ViewData["Title"] = "Nowe wypożyczenie";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-journal-plus me-2 text-primary"></i>Nowe wypożyczenie</h2>
+            <p class="text-muted mb-0">Wyszukaj egzemplarz po tytule, autorze, ISBN lub numerze inwentarzowym</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Powrót do listy
+        </a>
+    </div>
+
+    <form asp-action="Create" method="post" id="borrowingForm">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <!-- Panel filtrów dynamicznych (wyszukiwarka egzemplarzy) -->
+        <div class="card shadow-sm border-0 mb-4 bg-light">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">1. Wybierz egzemplarz książki</h5>
+                <div id="filtersForm" class="row g-3">
+                    <!-- Wyszukiwarka tekstowa (Tytuł, Autor, ISBN, Nr inwentarzowy) -->
+                    <div class="col-md-12 col-lg-5">
+                        <label class="form-label fw-bold small text-muted">Fraza (tytuł, autor, ISBN, nr inw.)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchString" name="searchString" class="form-control"
+                                   placeholder="Wpisz tytuł, ISBN lub numer inwentarzowy..." value="@ViewBag.CurrentSearch" autocomplete="off" />
+                        </div>
+                    </div>
+
+                    <!-- Filtr Kategorii -->
+                    <div class="col-md-6 col-lg-3">
+                        <label class="form-label fw-bold small text-muted">Kategoria</label>
+                        <select id="categoryId" name="categoryId" class="form-select" asp-items="ViewBag.Categories">
+                            <option value="">-- Wszystkie kategorie --</option>
+                        </select>
+                    </div>
+
+                    <!-- Filtr Autora -->
+                    <div class="col-md-6 col-lg-3">
+                        <label class="form-label fw-bold small text-muted">Autor</label>
+                        <select id="authorId" name="authorId" class="form-select" asp-items="ViewBag.AuthorId">
+                            <option value="">-- Wszyscy autorzy --</option>
+                        </select>
+                    </div>
+
+                    <!-- Przycisk resetu -->
+                    <div class="col-lg-1 d-flex align-items-end">
+                        <button type="button" id="btnReset" class="btn btn-outline-secondary w-100" title="Wyczyść filtry">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+
+                    <div class="col-12">
+                        <span id="loadingIndicator" class="text-primary small d-none">
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Wyszukiwanie dostępnych egzemplarzy...
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kontener na tabelę z egzemplarzami podmienianą przez AJAX -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <span class="text-danger small">* Zaznacz jedno pole wyboru przy wybranym egzemplarzu</span>
+            </div>
+            <div id="bookCopiesTableContainer">
+                @await Html.PartialAsync("_BookCopyListPartial", ViewData["AvailableCopies"] ?? new List<Biblioteka.Models.BookCopy>())
+            </div>
+        </div>
+        <span asp-validation-for="BookCopyId" class="text-danger d-block mb-3"></span>
+
+        <!-- Sekcja danych wypożyczenia -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">2. Dane wypożyczenia</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="UserId" class="form-label fw-bold">Czytelnik</label>
+                        <select asp-for="UserId" class="form-select" asp-items="ViewBag.UserId">
+                            <option value="">-- Wybierz użytkownika --</option>
+                        </select>
+                        <span asp-validation-for="UserId" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="DueDate" class="form-label fw-bold">Termin zwrotu</label>
+                        <input asp-for="DueDate" class="form-control" type="date" />
+                        <span asp-validation-for="DueDate" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-check-lg me-1"></i>Zatwierdź wypożyczenie
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.getElementById("searchString");
+            const categorySelect = document.getElementById("categoryId");
+            const authorSelect = document.getElementById("authorId");
+            const btnReset = document.getElementById("btnReset");
+            const container = document.getElementById("bookCopiesTableContainer");
+            const loader = document.getElementById("loadingIndicator");
+            const form = document.getElementById("borrowingForm");
+
+            // Główny zbiór trzymający ID zaznaczonych elementów w pamięci przeglądarki
+            const selectedCopyIds = new Set();
+            let debounceTimer = null;
+
+            // Funkcja, która przechodzi przez wszystkie checkboxy w tabeli i zaznacza te, których ID jest w secie
+            function restoreSelections() {
+                const checkboxes = container.querySelectorAll(".copy-checkbox");
+                checkboxes.forEach(checkbox => {
+                    if (selectedCopyIds.has(checkbox.value)) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+
+            // Globalna nasłuchiwarka zmian (działa nawet po podmieniawaniu tabeli przez AJAX)
+            document.addEventListener("change", function (event) {
+                if (event.target.classList.contains("copy-checkbox")) {
+                    const id = event.target.value;
+                    if (event.target.checked) {
+                        selectedCopyIds.add(id);
+                    } else {
+                        selectedCopyIds.delete(id);
+                    }
+                    console.log("Aktualnie zaznaczone ID w pamięci:", Array.from(selectedCopyIds));
+                }
+            });
+
+            function fetchFilteredCopies() {
+                loader.classList.remove("d-none");
+
+                const params = new URLSearchParams({
+                    searchString: searchInput.value,
+                    categoryId: categorySelect.value,
+                    authorId: authorSelect.value
+                });
+
+                fetch(`@Url.Action("Create", "Borrowings")?${params.toString()}`, {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error("Błąd sieci");
+                    return response.text();
+                })
+                .then(html => {
+                    container.innerHTML = html;
+                    restoreSelections(); // Natychmiast przywróć zaznaczenia po wstawieniu nowego HTML
+                })
+                .catch(err => console.error("Błąd filtrowania:", err))
+                .finally(() => {
+                    loader.classList.add("d-none");
+                });
+            }
+
+            function triggerDebouncedSearch() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(fetchFilteredCopies, 300);
+            }
+
+            // Nasłuchiwanie zmian w filtrach
+            searchInput.addEventListener("input", triggerDebouncedSearch);
+            categorySelect.addEventListener("change", fetchFilteredCopies);
+            authorSelect.addEventListener("change", fetchFilteredCopies);
+
+            btnReset.addEventListener("click", function () {
+                searchInput.value = "";
+                categorySelect.value = "";
+                authorSelect.value = "";
+                fetchFilteredCopies();
+            });
+
+            // Przed wysłaniem formularza do backendu generujemy ukryte inputy dla WSZYSTKICH zaznaczonych pozycji
+            form.addEventListener("submit", function () {
+                document.querySelectorAll(".hidden-selected-copy").forEach(el => el.remove());
+
+                selectedCopyIds.forEach(id => {
+                    const hiddenInput = document.createElement("input");
+                    hiddenInput.type = "hidden";
+                    hiddenInput.name = "selectedBookCopyIds";
+                    hiddenInput.value = id;
+                    hiddenInput.className = "hidden-selected-copy";
+                    form.appendChild(hiddenInput);
+                });
+            });
+        });
+    </script>
+}
