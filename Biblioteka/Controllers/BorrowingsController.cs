@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Biblioteka.Controllers
 {
-    [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
+    [Authorize]
     public class BorrowingsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -19,7 +19,29 @@ namespace Biblioteka.Controllers
             _context = context;
         }
 
-        // GET: Borrowings (Lista wypożyczeń z wyszukiwaniem i filtrowaniem AJAX)
+        // GET: Borrowings/MyBorrowings (Wypożyczenia zalogowanego czytelnika)
+        public async Task<IActionResult> MyBorrowings()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Challenge();
+            }
+
+            var myBorrowings = await _context.Borrowings
+                .Include(b => b.BookCopy)
+                    .ThenInclude(bc => bc.Book)
+                        .ThenInclude(book => book.Author)
+                .Where(b => b.UserId == userId)
+                .OrderBy(b => b.ReturnDate.HasValue) // Najpierw niezwrócone (aktywne)
+                .ThenBy(b => b.DueDate)              // Najbliższy termin zwrotu na górze
+                .ToListAsync();
+
+            return View(myBorrowings);
+        }
+
+        // GET: Borrowings (Lista wypożyczeń z obsługą wyszukiwania i filtrów)
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Index(string? searchString, string? statusFilter)
         {
             var borrowingsQuery = _context.Borrowings
@@ -72,6 +94,7 @@ namespace Biblioteka.Controllers
         }
 
         // GET: Borrowings/Create
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Create(string? searchString, int? categoryId, int? authorId)
         {
             var availableCopies = await GetFilteredAvailableCopiesAsync(searchString, categoryId, authorId);

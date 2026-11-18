@@ -40,6 +40,7 @@ public class Borrowing
     [Display(Name = "Naliczona kara")]
     public decimal FineAmount { get; set; } = 0m;
 
+    [NotMapped]
     [StringLength(500, ErrorMessage = "Uwagi nie mogą przekraczać 500 znaków.")]
     [Display(Name = "Uwagi")]
     public string? Comments { get; set; }
