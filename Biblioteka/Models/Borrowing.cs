@@ -46,4 +46,16 @@ public class Borrowing
 
     [NotMapped]
     public bool IsReturned => ReturnDate.HasValue;
+
+    public decimal CalculateFine(decimal dailyRate = 0.50m)
+    {
+        var endDate = ReturnDate ?? DateTime.UtcNow;
+        if (endDate.Date > DueDate.Date)
+        {
+            int overdueDays = (endDate.Date - DueDate.Date).Days;
+            return overdueDays * dailyRate;
+        }
+
+        return 0m;
+    }
 }
