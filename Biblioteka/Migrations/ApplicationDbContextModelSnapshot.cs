@@ -219,15 +219,16 @@ namespace Biblioteka.Migrations
                     b.Property<DateTime>("BorrowDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Comments")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateTime>("DueDate")
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("FineAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("IsProlonged")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("ReturnDate")
                         .HasColumnType("datetime2");
