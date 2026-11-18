@@ -1,4 +1,5 @@
-﻿using Biblioteka.Constants;
+﻿using System.Security.Claims;
+using Biblioteka.Constants;
 using Biblioteka.Data;
 using Biblioteka.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -30,8 +31,8 @@ namespace Biblioteka.Controllers
 
             var myBorrowings = await _context.Borrowings
                 .Include(b => b.BookCopy)
-                    .ThenInclude(bc => bc.Book)
-                        .ThenInclude(book => book.Author)
+                    .ThenInclude(bc => bc!.Book)
+                        .ThenInclude(book => book!.Author)
                 .Where(b => b.UserId == userId)
                 .OrderBy(b => b.ReturnDate.HasValue) // Najpierw niezwrócone (aktywne)
                 .ThenBy(b => b.DueDate)              // Najbliższy termin zwrotu na górze
@@ -123,6 +124,7 @@ namespace Biblioteka.Controllers
         // POST: Borrowings/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Create(
             int[]? selectedBookCopyIds,
             string userId,
@@ -215,6 +217,7 @@ namespace Biblioteka.Controllers
         // POST: Borrowings/ReturnBook/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> ReturnBook(int id)
         {
             var borrowing = await _context.Borrowings
@@ -228,18 +231,8 @@ namespace Biblioteka.Controllers
 
             if (borrowing.ReturnDate == null)
             {
-                var now = DateTime.UtcNow;
-                borrowing.ReturnDate = now;
-
-                if (now.Date > borrowing.DueDate.Date)
-                {
-                    int overdueDays = (now.Date - borrowing.DueDate.Date).Days;
-                    borrowing.FineAmount = overdueDays * DailyFineRate;
-                }
-                else
-                {
-                    borrowing.FineAmount = 0m;
-                }
+                borrowing.ReturnDate = DateTime.UtcNow;
+                borrowing.FineAmount = borrowing.CalculateFine(DailyFineRate);
 
                 if (borrowing.BookCopy != null)
                 {
