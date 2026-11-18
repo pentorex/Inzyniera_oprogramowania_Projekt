@@ -40,10 +40,23 @@ public class Borrowing
     [Display(Name = "Naliczona kara")]
     public decimal FineAmount { get; set; } = 0m;
 
+    [NotMapped]
     [StringLength(500, ErrorMessage = "Uwagi nie mogą przekraczać 500 znaków.")]
     [Display(Name = "Uwagi")]
     public string? Comments { get; set; }
 
     [NotMapped]
     public bool IsReturned => ReturnDate.HasValue;
+
+    public decimal CalculateFine(decimal dailyRate = 0.50m)
+    {
+        var endDate = ReturnDate ?? DateTime.UtcNow;
+        if (endDate.Date > DueDate.Date)
+        {
+            int overdueDays = (endDate.Date - DueDate.Date).Days;
+            return overdueDays * dailyRate;
+        }
+
+        return 0m;
+    }
 }

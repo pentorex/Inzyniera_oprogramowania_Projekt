@@ -1,6 +1,6 @@
 ﻿@using Biblioteka.Constants
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -28,20 +28,22 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
-                        @if (User.Identity?.IsAuthenticated == true && User.IsInRole(UserRoles.Admin))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark fw-bold" asp-controller="AdminUsers" asp-action="Index">
-                                    <i class="bi bi-people-fill me-1"></i>Zarządzanie Użytkownikami
-                                </a>
-                            </li>
-                        }
                         <!-- Odnośnik do katalogu książek (/Books) -->
                         <li class="nav-item">
                             <a class="nav-link text-dark fw-bold" asp-area="" asp-controller="Books" asp-action="Index">
                                 <i class="bi bi-book me-1"></i>Książki
                             </a>
                         </li>
+                        <!-- Odnośnik dla każdego zalogowanego użytkownika -->
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark fw-semibold" asp-area="" asp-controller="Borrowings" asp-action="MyBorrowings">
+                                    <i class="bi bi-journal-check me-1"></i>Moje wypożyczenia
+                                </a>
+                            </li>
+                        }
+                        <!-- Odnośniki dla Administratora i Bibliotekarza -->
                         @if (User.Identity?.IsAuthenticated == true && (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian)))
                         {
                             <li class="nav-item">
@@ -55,7 +57,18 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Borrowings" asp-action="Index">Wypożyczenia</a>
+                                <a class="nav-link text-dark fw-semibold" asp-area="" asp-controller="Borrowings" asp-action="Index">
+                                    <i class="bi bi-arrow-left-right me-1"></i>Wypożyczenia
+                                </a>
+                            </li>
+                        }
+                        <!-- Odnośnik tylko dla Administratora -->
+                        @if (User.Identity?.IsAuthenticated == true && User.IsInRole(UserRoles.Admin))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark fw-bold" asp-controller="AdminUsers" asp-action="Index">
+                                    <i class="bi bi-people-fill me-1"></i>Zarządzanie Użytkownikami
+                                </a>
                             </li>
                         }
                     </ul>
