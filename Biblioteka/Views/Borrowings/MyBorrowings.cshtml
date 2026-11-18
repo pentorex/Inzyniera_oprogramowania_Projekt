@@ -1,0 +1,189 @@
+﻿@model IEnumerable<Biblioteka.Models.Borrowing>
+
+@{
+    ViewData["Title"] = "Moje wypożyczenia";
+    var activeBorrowings = Model.Where(b => b.ReturnDate == null).ToList();
+    var returnedBorrowings = Model.Where(b => b.ReturnDate != null).ToList();
+    var overdueCount = activeBorrowings.Count(b => b.DueDate.Date < DateTime.UtcNow.Date);
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-journal-check me-2 text-primary"></i>Moje wypożyczenia</h2>
+            <p class="text-muted mb-0">Lista aktualnie posiadanych książek oraz historia zwrotów</p>
+        </div>
+        <a asp-controller="Books" asp-action="Index" class="btn btn-outline-primary">
+            <i class="bi bi-search me-1"></i>Przeglądaj katalog
+        </a>
+    </div>
+
+    <!-- Podsumowanie liczników -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-primary border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Aktualnie wypożyczone</div>
+                    <div class="fs-4 fw-bold text-primary">@activeBorrowings.Count</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-danger border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Po terminie zwrotu</div>
+                    <div class="fs-4 fw-bold text-danger">@overdueCount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-success border-4">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Zwrócone w przeszłości</div>
+                    <div class="fs-4 fw-bold text-success">@returnedBorrowings.Count</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sekcja 1: Aktywne wypożyczenia -->
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 fw-bold">
+                <i class="bi bi-book me-2 text-primary"></i>Aktywne wypożyczenia (@activeBorrowings.Count)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tytuł książki</th>
+                            <th>Autor</th>
+                            <th>Nr inwentarzowy</th>
+                            <th>Data wypożyczenia</th>
+                            <th>Termin zwrotu</th>
+                            <th>Naliczone opłaty</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!activeBorrowings.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Nie masz obecnie żadnych wypożyczonych książek.
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var item in activeBorrowings)
+                        {
+                            var isOverdue = item.DueDate.Date < DateTime.UtcNow.Date;
+                            var currentFine = item.CalculateFine();
+                            var book = item.BookCopy?.Book;
+
+                            <tr class="@(isOverdue ? "table-danger" : "")">
+                                <td>
+                                    @if (book != null)
+                                    {
+                                        <a asp-controller="Books" asp-action="Details" asp-route-id="@book.Id" class="fw-bold text-decoration-none text-dark">
+                                            @book.Title
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Nieznany tytuł</span>
+                                    }
+                                </td>
+                                <td>
+                                    @(book?.Author != null ? $"{book.Author.FirstName} {book.Author.LastName}" : "—")
+                                </td>
+                                <td><code>@(item.BookCopy?.InventoryNumber ?? $"#{item.BookCopyId}")</code></td>
+                                <td>@item.BorrowDate.ToString("dd.MM.yyyy")</td>
+                                <td class="fw-semibold">@item.DueDate.ToString("dd.MM.yyyy")</td>
+                                <td class="@(currentFine > 0 ? "text-danger fw-bold" : "")">
+                                    @currentFine.ToString("0.00") zł
+                                </td>
+                                <td>
+                                    @if (isOverdue)
+                                    {
+                                        var daysLate = (DateTime.UtcNow.Date - item.DueDate.Date).Days;
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-exclamation-circle me-1"></i>Po terminie (@daysLate dni)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-clock me-1"></i>W trakcie czytania
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sekcja 2: Historia zwrotów -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 fw-bold text-secondary">
+                <i class="bi bi-clock-history me-2"></i>Historia wypożyczeń (@returnedBorrowings.Count)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tytuł książki</th>
+                            <th>Autor</th>
+                            <th>Nr inwentarzowy</th>
+                            <th>Data wypożyczenia</th>
+                            <th>Data zwrotu</th>
+                            <th>Naliczona kara</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!returnedBorrowings.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Brak historii wcześniejszych wypożyczeń.
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var item in returnedBorrowings)
+                        {
+                            var book = item.BookCopy?.Book;
+                            <tr>
+                                <td>
+                                    @if (book != null)
+                                    {
+                                        <a asp-controller="Books" asp-action="Details" asp-route-id="@book.Id" class="text-decoration-none text-dark">
+                                            @book.Title
+                                        </a>
+                                    }
+                                </td>
+                                <td>@(book?.Author != null ? $"{book.Author.FirstName} {book.Author.LastName}" : "—")</td>
+                                <td><code>@(item.BookCopy?.InventoryNumber ?? $"#{item.BookCopyId}")</code></td>
+                                <td>@item.BorrowDate.ToString("dd.MM.yyyy")</td>
+                                <td>@item.ReturnDate?.ToString("dd.MM.yyyy")</td>
+                                <td>@item.FineAmount.ToString("0.00") zł</td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Zwrócona
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ using Biblioteka.Models;
 
 namespace Biblioteka.Controllers
 {
-    [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
+    [Authorize]
     public class BorrowingsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -18,7 +19,29 @@ namespace Biblioteka.Controllers
             _context = context;
         }
 
+        // GET: Borrowings/MyBorrowings (Wypożyczenia zalogowanego czytelnika)
+        public async Task<IActionResult> MyBorrowings()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Challenge();
+            }
+
+            var myBorrowings = await _context.Borrowings
+                .Include(b => b.BookCopy)
+                    .ThenInclude(bc => bc.Book)
+                        .ThenInclude(book => book.Author)
+                .Where(b => b.UserId == userId)
+                .OrderBy(b => b.ReturnDate.HasValue) // Najpierw niezwrócone (aktywne)
+                .ThenBy(b => b.DueDate)              // Najbliższy termin zwrotu na górze
+                .ToListAsync();
+
+            return View(myBorrowings);
+        }
+
         // GET: Borrowings (Lista wypożyczeń z obsługą wyszukiwania i filtrów)
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Index(string? searchString, string? statusFilter)
         {
             var borrowingsQuery = _context.Borrowings
@@ -70,6 +93,7 @@ namespace Biblioteka.Controllers
         }
 
         // GET: Borrowings/Create
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Create(string? searchString, int? categoryId, int? authorId)
         {
             var copiesQuery = _context.BookCopies
@@ -135,6 +159,7 @@ namespace Biblioteka.Controllers
         // POST: Borrowings/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> Create(int[] selectedBookCopyIds, string userId, DateTime dueDate, string? searchString, int? categoryId, int? authorId)
         {
             if (selectedBookCopyIds == null || selectedBookCopyIds.Length == 0)
@@ -188,7 +213,7 @@ namespace Biblioteka.Controllers
             return View();
         }
 
-        // POST: Borrowings/Return/5
+        // POST: Borrowings/ReturnBook/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
@@ -207,7 +232,7 @@ namespace Biblioteka.Controllers
             if (borrowing.ReturnDate == null)
             {
                 borrowing.ReturnDate = DateTime.UtcNow;
-                borrowing.FineAmount = borrowing.CalculateFine(); // Wyliczenie kary[cite: 5]
+                borrowing.FineAmount = borrowing.CalculateFine(); // Wyliczenie kary
 
                 // Zmiana statusu egzemplarza na Dostępny
                 if (borrowing.BookCopy != null)
