@@ -1,0 +1,80 @@
+﻿@model IEnumerable<Biblioteka.Models.Reservation>
+@using Biblioteka.Models
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Czytelnik</th>
+                <th>Tytuł książki</th>
+                <th>Nr inwentarzowy</th>
+                <th>Data rezerwacji</th>
+                <th>Ważna do</th>
+                <th>Status</th>
+                <th class="text-end">Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model == null || !Model.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-bookmark fs-1 d-block mb-2"></i>
+                        Brak rezerwacji spełniających kryteria.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.User?.Email</td>
+                        <td><strong>@item.BookCopy?.Book?.Title</strong></td>
+                        <td><code>@item.BookCopy?.InventoryNumber</code></td>
+                        <td>@item.ReservationDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@item.ExpiryDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            @switch (item.Status)
+                            {
+                                case ReservationStatus.Pending:
+                                    <span class="badge bg-warning text-dark">Oczekuje</span>
+                                    break;
+                                case ReservationStatus.Fulfilled:
+                                    <span class="badge bg-success">Zrealizowana</span>
+                                    break;
+                                case ReservationStatus.Cancelled:
+                                    <span class="badge bg-secondary">Anulowana</span>
+                                    break;
+                                case ReservationStatus.Expired:
+                                    <span class="badge bg-danger">Wygasła</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (item.Status == ReservationStatus.Pending)
+                            {
+                                <form asp-action="Fulfill" asp-route-id="@item.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-success me-1" onclick="return confirm('Potwierdzić wydanie książki i utworzyć wypożyczenie?');">
+                                        <i class="bi bi-check-circle me-1"></i>Wydaj (Realizuj)
+                                    </button>
+                                </form>
+                                <form asp-action="Cancel" asp-route-id="@item.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Czy na pewno chcesz anulować tę rezerwację?');">
+                                        <i class="bi bi-x-circle me-1"></i>Anuluj
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

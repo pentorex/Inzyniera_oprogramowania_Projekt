@@ -138,7 +138,7 @@ namespace Biblioteka.Controllers
         // POST: Reservations/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("BookCopyId")] Reservation reservation)
+        public async Task<IActionResult> Create(int bookCopyId)
         {
             await ExpireOutdatedReservationsAsync();
 
@@ -160,20 +160,20 @@ namespace Biblioteka.Controllers
 
             if (activeUserReservationsCount >= MaxActiveReservationsPerUser)
             {
-                ModelState.AddModelError("BookCopyId", $"Osiągnięto limit aktywnych rezerwacji ({MaxActiveReservationsPerUser}).");
+                ModelState.AddModelError("", $"Osiągnięto limit aktywnych rezerwacji ({MaxActiveReservationsPerUser}).");
             }
 
             var bookCopy = await _context.BookCopies
                 .Include(bc => bc.Book)
-                .FirstOrDefaultAsync(bc => bc.Id == reservation.BookCopyId);
+                .FirstOrDefaultAsync(bc => bc.Id == bookCopyId);
 
             if (bookCopy == null)
             {
-                ModelState.AddModelError("BookCopyId", "Wybrany egzemplarz książki nie istnieje.");
+                ModelState.AddModelError("", "Wybrany egzemplarz książki nie istnieje.");
             }
             else if (bookCopy.Status != BookStatus.Available)
             {
-                ModelState.AddModelError("BookCopyId", "Wybrany egzemplarz nie jest już dostępny do rezerwacji.");
+                ModelState.AddModelError("", "Wybrany egzemplarz nie jest już dostępny do rezerwacji.");
             }
             else
             {
@@ -185,11 +185,12 @@ namespace Biblioteka.Controllers
 
                 if (alreadyReservedSameTitle)
                 {
-                    ModelState.AddModelError("BookCopyId", "Masz już aktywną rezerwację na ten tytuł.");
+                    ModelState.AddModelError("", "Masz już aktywną rezerwację na ten tytuł.");
                 }
             }
 
-            if (ModelState.IsValid && bookCopy != null)
+            // Jeśli nie ma żadnych błędów biznesowych, zapisujemy rezerwację
+            if (ViewData.ModelState.ErrorCount == 0 && bookCopy != null)
             {
                 var now = DateTime.UtcNow;
 
@@ -211,8 +212,8 @@ namespace Biblioteka.Controllers
                 return RedirectToAction(nameof(MyReservations));
             }
 
-            await PopulateAvailableCopiesSelectListAsync(reservation.BookCopyId);
-            return View(reservation);
+            await PopulateAvailableCopiesSelectListAsync(bookCopyId);
+            return View(new Reservation { BookCopyId = bookCopyId });
         }
 
         // POST: Reservations/Cancel/5 (Anulowanie rezerwacji przez czytelnika lub bibliotekarza)
@@ -240,19 +241,27 @@ namespace Biblioteka.Controllers
             if (reservation.Status != ReservationStatus.Pending)
             {
                 TempData["ErrorMessage"] = "Można anulować wyłącznie oczekującą rezerwację.";
-                return isStaff ? RedirectToAction(nameof(Index)) : RedirectToAction(nameof(MyReservations));
             }
-
-            reservation.Status = ReservationStatus.Cancelled;
-
-            if (reservation.BookCopy != null && reservation.BookCopy.Status == BookStatus.Reserved)
+            else
             {
-                reservation.BookCopy.Status = BookStatus.Available;
+                reservation.Status = ReservationStatus.Cancelled;
+
+                if (reservation.BookCopy != null && reservation.BookCopy.Status == BookStatus.Reserved)
+                {
+                    reservation.BookCopy.Status = BookStatus.Available;
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Rezerwacja została anulowana, a egzemplarz wrócił do puli dostępnych.";
             }
 
-            await _context.SaveChangesAsync();
+            // Inteligentne przekierowanie: jeśli akcja wywołana była z "MyReservations", wróc tam
+            var referer = Request.Headers["Referer"].ToString();
+            if (!string.IsNullOrEmpty(referer) && referer.Contains("MyReservations"))
+            {
+                return RedirectToAction(nameof(MyReservations));
+            }
 
-            TempData["SuccessMessage"] = "Rezerwacja została anulowana, a egzemplarz wrócił do puli dostępnych.";
             return isStaff ? RedirectToAction(nameof(Index)) : RedirectToAction(nameof(MyReservations));
         }
 

@@ -1,4 +1,5 @@
 ﻿@model Biblioteka.Models.Book
+@using Biblioteka.Models
 
 @{
     ViewData["Title"] = Model.Title;
@@ -12,6 +13,22 @@
             <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
         </ol>
     </nav>
+
+    <!-- Obsługa komunikatów zwrotnych (np. brak dostępnych egzemplarzy) -->
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-4">
@@ -47,17 +64,44 @@
                             <table class="table table-sm table-bordered align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Numer egzemplarza (Sygnatura)</th>
-                                        <th>Status w bazie</th>
+                                        <th>Numer inwentarzowy</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Akcja</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var copy in Model.Copies)
                                     {
                                         <tr>
-                                            <td><code>#@copy.Id</code></td>
+                                            <td><code>@copy.InventoryNumber</code></td>
                                             <td>
-                                                <span class="badge bg-secondary">Zarejestrowany na stanie</span>
+                                                @switch (copy.Status)
+                                                {
+                                                    case BookStatus.Available:
+                                                        <span class="badge bg-success">Dostępny</span>
+                                                        break;
+                                                    case BookStatus.Borrowed:
+                                                        <span class="badge bg-danger">Wypożyczony</span>
+                                                        break;
+                                                    case BookStatus.Reserved:
+                                                        <span class="badge bg-warning text-dark">Zarezerwowany</span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-secondary">@copy.Status</span>
+                                                        break;
+                                                }
+                                            </td>
+                                            <td class="text-end">
+                                                @if (copy.Status == BookStatus.Available)
+                                                {
+                                                    <a asp-controller="Reservations" asp-action="Create" asp-route-bookCopyId="@copy.Id" class="btn btn-sm btn-outline-warning">
+                                                        <i class="bi bi-bookmark-plus me-1"></i>Zarezerwuj ten egzemplarz
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small">—</span>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -102,6 +146,11 @@
 
                     <!-- Przyciski akcji -->
                     <div class="d-grid gap-2">
+                        <!-- Główny przycisk rezerwacji dowolnego wolnego egzemplarza -->
+                        <a asp-controller="Reservations" asp-action="Create" asp-route-bookId="@Model.Id" class="btn btn-warning">
+                            <i class="bi bi-bookmark-plus me-1"></i>Zarezerwuj książkę
+                        </a>
+
                         @if (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian))
                         {
                             <!-- Przycisk dodawania fizycznego egzemplarza -->
