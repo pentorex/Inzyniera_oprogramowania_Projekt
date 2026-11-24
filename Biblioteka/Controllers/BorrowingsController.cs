@@ -222,6 +222,17 @@ namespace Biblioteka.Controllers
                 {
                     ModelState.AddModelError("UserId", "Konto tego czytelnika jest nieaktywne.");
                 }
+                else
+                {
+                    // Blokada wypożyczenia, jeśli czytelnik posiada zaległe książki po terminie zwrotu
+                    bool hasOverdueBooks = await _context.Borrowings
+                        .AnyAsync(b => b.UserId == userId && b.ReturnDate == null && b.DueDate < DateTime.UtcNow);
+
+                    if (hasOverdueBooks)
+                    {
+                        ModelState.AddModelError("UserId", "Czytelnik posiada przetrzymane książki po terminie zwrotu. Przed kolejnym wypożyczeniem należy uregulować zaległości.");
+                    }
+                }
             }
 
             if (dueDate.Date < DateTime.UtcNow.Date)
@@ -233,9 +244,10 @@ namespace Biblioteka.Controllers
             var copiesToBorrow = new List<BookCopy>();
             var matchingReservations = new List<Reservation>();
 
-            if (distinctCopyIds.Length > 0)
+            if (distinctCopyIds.Length > 0 && !string.IsNullOrWhiteSpace(userId))
             {
                 copiesToBorrow = await _context.BookCopies
+                    .Include(bc => bc.Book)
                     .Where(bc => distinctCopyIds.Contains(bc.Id))
                     .ToListAsync();
 
@@ -243,16 +255,33 @@ namespace Biblioteka.Controllers
                     .Where(r => distinctCopyIds.Contains(r.BookCopyId) && r.Status == ReservationStatus.Pending)
                     .ToListAsync();
 
-                bool hasUnavailableOrForeignReserved = copiesToBorrow.Count != distinctCopyIds.Length ||
-                    copiesToBorrow.Any(bc =>
-                        bc.Status != BookStatus.Available &&
-                        !(bc.Status == BookStatus.Reserved && activeReservations.Any(r => r.BookCopyId == bc.Id && r.UserId == userId)));
-
-                if (hasUnavailableOrForeignReserved)
+                if (copiesToBorrow.Count != distinctCopyIds.Length)
                 {
-                    ModelState.AddModelError("BookCopyId", "Co najmniej jeden z wybranych egzemplarzy jest niedostępny lub zarezerwowany przez innego czytelnika.");
+                    ModelState.AddModelError("BookCopyId", "Nie odnaleziono wszystkich wybranych egzemplarzy.");
                 }
-                else
+
+                // Szczegółowa walidacja statusu i rezerwacji każdego wybranego egzemplarza
+                foreach (var copy in copiesToBorrow)
+                {
+                    var copyReservations = activeReservations.Where(r => r.BookCopyId == copy.Id).ToList();
+                    bool isReservedByOther = copyReservations.Any(r => r.UserId != userId);
+                    bool isReservedByCurrentUser = copyReservations.Any(r => r.UserId == userId);
+
+                    if (copy.Status == BookStatus.Reserved && !isReservedByCurrentUser)
+                    {
+                        ModelState.AddModelError("BookCopyId", $"Egzemplarz {copy.InventoryNumber} ({copy.Book?.Title}) jest zarezerwowany przez innego czytelnika.");
+                    }
+                    else if (copy.Status == BookStatus.Available && isReservedByOther)
+                    {
+                        ModelState.AddModelError("BookCopyId", $"Egzemplarz {copy.InventoryNumber} ({copy.Book?.Title}) posiada aktywną rezerwację innego czytelnika.");
+                    }
+                    else if (copy.Status != BookStatus.Available && copy.Status != BookStatus.Reserved)
+                    {
+                        ModelState.AddModelError("BookCopyId", $"Egzemplarz {copy.InventoryNumber} ({copy.Book?.Title}) jest obecnie niedostępny.");
+                    }
+                }
+
+                if (ModelState.IsValid)
                 {
                     matchingReservations = activeReservations
                         .Where(r => r.UserId == userId)
@@ -280,6 +309,7 @@ namespace Biblioteka.Controllers
                     _context.Borrowings.Add(borrowing);
                 }
 
+                // Realizacja aktywnych rezerwacji przypisanych do tego czytelnika
                 foreach (var reservation in matchingReservations)
                 {
                     reservation.Status = ReservationStatus.Fulfilled;
@@ -326,7 +356,11 @@ namespace Biblioteka.Controllers
 
                 if (borrowing.BookCopy != null)
                 {
-                    borrowing.BookCopy.Status = BookStatus.Available;
+                    // Jeśli na zwracany egzemplarz oczekuje rezerwacja, ustaw status Reserved zamiast Available
+                    bool hasPendingReservation = await _context.Reservations
+                        .AnyAsync(r => r.BookCopyId == borrowing.BookCopyId && r.Status == ReservationStatus.Pending);
+
+                    borrowing.BookCopy.Status = hasPendingReservation ? BookStatus.Reserved : BookStatus.Available;
                 }
 
                 await _context.SaveChangesAsync();
@@ -348,7 +382,9 @@ namespace Biblioteka.Controllers
                     .ThenInclude(b => b!.Author)
                 .Include(bc => bc.Book)
                     .ThenInclude(b => b!.Categories)
-                .Where(bc => bc.Status == BookStatus.Available)
+                .Include(bc => bc.Reservations.Where(r => r.Status == ReservationStatus.Pending))
+                    .ThenInclude(r => r.User)
+                .Where(bc => bc.Status == BookStatus.Available || bc.Status == BookStatus.Reserved)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(searchString))
