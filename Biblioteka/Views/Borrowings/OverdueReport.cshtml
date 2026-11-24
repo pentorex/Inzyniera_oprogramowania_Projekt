@@ -1,0 +1,169 @@
+﻿@model IEnumerable<Biblioteka.Models.Borrowing>
+
+@{
+    ViewData["Title"] = "Raport zaległości i naliczania kar";
+    int totalOverdueCount = ViewBag.TotalOverdueCount ?? 0;
+    decimal totalAccruedFines = ViewBag.TotalAccruedFines ?? 0m;
+    decimal totalHistoricalFines = ViewBag.TotalHistoricalFines ?? 0m;
+    int debtorsCount = ViewBag.DebtorsCount ?? 0;
+    decimal dailyRate = ViewBag.DailyFineRate ?? 0.50m;
+}
+
+<style>
+    @@media print {
+        .d-print-none, header, footer, .btn, form {
+            display: none !important;
+        }
+        .card {
+            border: 1px solid #dee2e6 !important;
+            box-shadow: none !important;
+        }
+        body {
+            background-color: #fff !important;
+        }
+    }
+</style>
+
+<div class="container py-4">
+    <!-- Nagłówek raportu -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Raport zaległości i naliczania kar
+            </h2>
+            <p class="text-muted mb-0">
+                Wygenerowano: <strong>@DateTime.Now.ToString("dd.MM.yyyy HH:mm")</strong> &bull; Stawka kary: <strong>@dailyRate.ToString("0.00") zł / dzień</strong>
+            </p>
+        </div>
+        <div class="d-flex gap-2 d-print-none">
+            <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
+                <i class="bi bi-printer me-1"></i>Drukuj raport
+            </button>
+            <a asp-action="Index" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left me-1"></i>Wszystkie wypożyczenia
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show d-print-none" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zamknij"></button>
+        </div>
+    }
+
+    <!-- Karty statystyk -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-danger border-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Przetrzymane egzemplarze</div>
+                    <div class="fs-3 fw-bold text-danger">@totalOverdueCount</div>
+                    <div class="small text-muted">aktywne zaległości</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-warning border-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Naliczone kary bieżące</div>
+                    <div class="fs-3 fw-bold text-warning-emphasis">@totalAccruedFines.ToString("0.00") zł</div>
+                    <div class="small text-muted">narastająco do rozliczenia</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-success border-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Kary historyczne</div>
+                    <div class="fs-3 fw-bold text-success">@totalHistoricalFines.ToString("0.00") zł</div>
+                    <div class="small text-muted">z rozliczonych zwrotów</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-dark border-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Dłużnicy</div>
+                    <div class="fs-3 fw-bold text-dark">@debtorsCount</div>
+                    <div class="small text-muted">czytelników z zaległościami</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pasek filtrowania -->
+    <div class="card shadow-sm border-0 mb-4 d-print-none">
+        <div class="card-body">
+            <form id="overdueFilterForm" method="get" asp-action="OverdueReport" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="searchString" class="form-label fw-semibold">Czytelnik, książka lub nr inw.</label>
+                    <input type="text" id="searchString" name="searchString" value="@ViewBag.CurrentSearch"
+                           class="form-control" placeholder="Szukaj..." />
+                </div>
+                <div class="col-md-3">
+                    <label for="reportType" class="form-label fw-semibold">Zakres raportu</label>
+                    <select id="reportType" name="reportType" class="form-select">
+                        <option value="active_overdue" selected="@(ViewBag.CurrentReportType == "active_overdue")">Aktywne zaległości</option>
+                        <option value="historical_fines" selected="@(ViewBag.CurrentReportType == "historical_fines")">Zwrócone z karą (historia)</option>
+                        <option value="all_fines" selected="@(ViewBag.CurrentReportType == "all_fines")">Wszystkie zaległości i kary</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="minDaysOverdue" class="form-label fw-semibold">Min. dni po terminie</label>
+                    <input type="number" id="minDaysOverdue" name="minDaysOverdue" value="@ViewBag.MinDaysOverdue"
+                           min="1" class="form-control" placeholder="np. 7" />
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i>Filtruj
+                    </button>
+                    <a asp-action="OverdueReport" class="btn btn-outline-secondary" title="Resetuj">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Kontener tabeli raportu (aktualizowany przez AJAX) -->
+    <div id="overdueReportContainer">
+        <partial name="_OverdueReportPartial" model="Model" />
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('overdueFilterForm');
+            const container = document.getElementById('overdueReportContainer');
+            let timeout = null;
+
+            function fetchReport() {
+                const params = new URLSearchParams(new FormData(form)).toString();
+                const url = `${form.action}?${params}`;
+
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    container.innerHTML = html;
+                    window.history.replaceState({}, '', url);
+                });
+            }
+
+            form.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', function () {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(fetchReport, 300);
+                });
+            });
+
+            form.querySelectorAll('select').forEach(select => {
+                select.addEventListener('change', fetchReport);
+            });
+        });
+    </script>
+}

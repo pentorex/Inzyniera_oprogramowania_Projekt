@@ -41,7 +41,7 @@ namespace Biblioteka.Controllers
             return View(myBorrowings);
         }
 
-        // GET: Borrowings/OverdueReport (Zadanie 2: Raport przeterminowanych wypożyczeń i naliczonych kar)
+        // GET: Borrowings/OverdueReport (Raport przeterminowanych wypożyczeń i naliczonych kar)
         [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
         public async Task<IActionResult> OverdueReport(string? searchString, string? reportType = "active_overdue", int? minDaysOverdue = null)
         {
@@ -67,6 +67,7 @@ namespace Biblioteka.Controllers
             ViewBag.TotalAccruedFines = activeOverdueList.Sum(b => b.CalculateFine(DailyFineRate));
             ViewBag.TotalHistoricalFines = historicalFinesTotal;
             ViewBag.DebtorsCount = activeOverdueList.Select(b => b.UserId).Distinct().Count();
+            ViewBag.DailyFineRate = DailyFineRate;
 
             // Filtrowanie zakresu raportu
             var reportQuery = reportType switch
@@ -279,7 +280,6 @@ namespace Biblioteka.Controllers
                     _context.Borrowings.Add(borrowing);
                 }
 
-                // Jeśli któryś z egzemplarzy był zarezerwowany przez tego czytelnika, oznacz rezerwację jako zrealizowaną
                 foreach (var reservation in matchingReservations)
                 {
                     reservation.Status = ReservationStatus.Fulfilled;
@@ -308,7 +308,7 @@ namespace Biblioteka.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
-        public async Task<IActionResult> ReturnBook(int id)
+        public async Task<IActionResult> ReturnBook(int id, string? returnUrl = null)
         {
             var borrowing = await _context.Borrowings
                 .Include(b => b.BookCopy)
@@ -331,6 +331,11 @@ namespace Biblioteka.Controllers
 
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = $"Książka została pomyślnie zwrócona. Naliczona kara: {borrowing.FineAmount:0.00} zł.";
+            }
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
             }
 
             return RedirectToAction(nameof(Index));

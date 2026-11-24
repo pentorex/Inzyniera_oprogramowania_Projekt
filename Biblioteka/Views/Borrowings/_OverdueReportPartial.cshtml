@@ -1,0 +1,118 @@
+﻿@model IEnumerable<Biblioteka.Models.Borrowing>
+
+@{
+    var today = DateTime.UtcNow.Date;
+    decimal dailyRate = ViewBag.DailyFineRate ?? 0.50m;
+}
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 fw-bold">
+            <i class="bi bi-table me-2 text-danger"></i>Pozycje w raporcie (@Model.Count())
+        </h5>
+        <span class="badge bg-light text-dark border">Suma w widoku: @Model.Sum(b => b.ReturnDate.HasValue ? b.FineAmount : b.CalculateFine(dailyRate)).ToString("0.00") zł</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Czytelnik</th>
+                        <th>Książka i egzemplarz</th>
+                        <th>Wypożyczono</th>
+                        <th>Termin zwrotu</th>
+                        <th>Opóźnienie</th>
+                        <th>Naliczona kara</th>
+                        <th>Status</th>
+                        <th class="text-end d-print-none">Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-emoji-smile fs-3 d-block mb-2 text-success"></i>
+                                Brak zaległości ani naliczonych kar spełniających wybrane kryteria.
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var item in Model)
+                    {
+                        var isReturned = item.ReturnDate.HasValue;
+                        var effectiveDate = item.ReturnDate?.Date ?? today;
+                        var overdueDays = Math.Max(0, (effectiveDate - item.DueDate.Date).Days);
+                        var fine = isReturned ? item.FineAmount : item.CalculateFine(dailyRate);
+                        var book = item.BookCopy?.Book;
+                        var readerName = item.User != null && (!string.IsNullOrWhiteSpace(item.User.FirstName) || !string.IsNullOrWhiteSpace(item.User.LastName))
+                        ? $"{item.User.FirstName} {item.User.LastName}"
+                        : null;
+
+                        <tr class="@(!isReturned ? "table-danger" : "")">
+                            <td>
+                                @if (!string.IsNullOrEmpty(readerName))
+                                {
+                                    <div class="fw-bold">@readerName</div>
+                                }
+                                <div class="small text-muted">@(item.User?.Email ?? "Brak e-maila")</div>
+                            </td>
+                            <td>
+                                @if (book != null)
+                                {
+                                    <a asp-controller="Books" asp-action="Details" asp-route-id="@book.Id" class="fw-bold text-decoration-none text-dark">
+                                        @book.Title
+                                    </a>
+                                }
+                                <div class="small text-muted">
+                                    Nr inw.: <code>@(item.BookCopy?.InventoryNumber ?? $"#{item.BookCopyId}")</code>
+                                </div>
+                            </td>
+                            <td>@item.BorrowDate.ToString("dd.MM.yyyy")</td>
+                            <td class="fw-semibold">@item.DueDate.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                <span class="badge @(overdueDays > 14 ? "bg-danger" : "bg-warning text-dark")">
+                                    @overdueDays @(overdueDays == 1 ? "dzień" : "dni")
+                                </span>
+                            </td>
+                            <td class="fw-bold text-danger fs-6">
+                                @fine.ToString("0.00") zł
+                            </td>
+                            <td>
+                                @if (!isReturned)
+                                {
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-clock-history me-1"></i>Przetrzymana
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-check2-circle me-1"></i>Zwrócona (@item.ReturnDate?.ToString("dd.MM.yyyy"))
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-end d-print-none">
+                                @if (!isReturned)
+                                {
+                                    <form asp-action="ReturnBook" method="post" class="d-inline"
+                                          onsubmit="return confirm('Potwierdzić zwrot książki i naliczenie kary @fine.ToString("0.00") zł?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Action("OverdueReport", "Borrowings")" />
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="bi bi-box-arrow-in-down me-1"></i>Zwróć i rozlicz
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Rozliczono</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
