@@ -82,6 +82,22 @@ namespace Biblioteka.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(EditUserViewModel model)
         {
+            var selectedRoles = model.SelectedRoles ?? new List<string>();
+            var currentUserId = _userManager.GetUserId(User);
+
+            // Zabezpieczenie przed odebraniem sobie roli Admin lub dezaktywacją własnego konta
+            if (model.Id == currentUserId)
+            {
+                if (!selectedRoles.Contains(UserRoles.Admin))
+                {
+                    ModelState.AddModelError(string.Empty, "Nie możesz odebrać roli Administratora własnemu kontu.");
+                }
+                if (!model.IsActive)
+                {
+                    ModelState.AddModelError(string.Empty, "Nie możesz dezaktywować własnego konta administratora.");
+                }
+            }
+
             if (!ModelState.IsValid)
             {
                 model.AvailableRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
@@ -114,8 +130,8 @@ namespace Biblioteka.Controllers
 
             // Aktualizacja ról użytkownika
             var currentRoles = await _userManager.GetRolesAsync(user);
-            var rolesToAdd = model.SelectedRoles.Except(currentRoles);
-            var rolesToRemove = currentRoles.Except(model.SelectedRoles);
+            var rolesToAdd = selectedRoles.Except(currentRoles);
+            var rolesToRemove = currentRoles.Except(selectedRoles);
 
             await _userManager.AddToRolesAsync(user, rolesToAdd);
             await _userManager.RemoveFromRolesAsync(user, rolesToRemove);

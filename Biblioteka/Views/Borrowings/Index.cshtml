@@ -8,39 +8,44 @@
 }
 
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-1"><i class="bi bi-journal-text me-2 text-primary"></i>Zarządzanie wypożyczeniami</h2>
-            <p class="text-muted mb-0">Przeszukuj historię i aktywne wypożyczenia czytelników</p>
+    <!-- Nagłówek strony -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary-soft rounded-3 p-3 fs-4 d-none d-sm-flex">
+                <i class="bi bi-journal-text"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1">Zarządzanie wypożyczeniami</h2>
+                <p class="text-muted mb-0 small">Przeszukuj aktywne wypożyczenia, rejestruj zwroty i kontroluj terminy</p>
+            </div>
         </div>
-        <a asp-action="Create" class="btn btn-success">
+
+        <a asp-action="Create" class="btn btn-accent w-100 w-sm-auto">
             <i class="bi bi-plus-lg me-1"></i>Nowe wypożyczenie
         </a>
     </div>
 
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-
     <!-- Panel wyszukiwania i filtrów -->
-    <div class="card shadow-sm border-0 mb-4 bg-light">
-        <div class="card-body p-4">
+    <div class="card border-0 mb-4">
+        <div class="card-body p-3 p-md-4">
             <div id="filterForm" class="row g-3">
-                <div class="col-md-6 lg-5">
-                    <label class="form-label fw-bold small text-muted">Fraza (tytuł, nr inwentarzowy, e-mail)</label>
+                <div class="col-12 col-md-6 col-lg-5">
+                    <label for="searchString" class="form-label fw-semibold small text-muted mb-1">
+                        Szukaj wypożyczenia
+                    </label>
                     <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                        <input type="text" id="searchString" name="searchString" class="form-control"
-                               placeholder="Szukaj wypożyczenia..." value="@currentSearch" autocomplete="off" />
+                        <span class="input-group-text bg-white text-muted border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="searchString" name="searchString" class="form-control border-start-0 ps-0"
+                               placeholder="Tytuł książki, nr inwentarzowy lub e-mail..." value="@currentSearch" autocomplete="off" />
                     </div>
                 </div>
 
-                <div class="col-md-4 lg-4">
-                    <label class="form-label fw-bold small text-muted">Status</label>
+                <div class="col-12 col-sm-7 col-md-4 col-lg-4">
+                    <label for="statusFilter" class="form-label fw-semibold small text-muted mb-1">
+                        Status wypożyczenia
+                    </label>
                     <select id="statusFilter" name="statusFilter" class="form-select">
                         <option value="">-- Wszystkie statusy --</option>
                         <option value="active" selected="@(currentStatus == "active")">Aktywne wypożyczenia</option>
@@ -49,27 +54,23 @@
                     </select>
                 </div>
 
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" id="btnReset" class="btn btn-outline-secondary w-100">
+                <div class="col-12 col-sm-5 col-md-2 col-lg-3 d-flex align-items-end justify-content-between justify-content-md-end gap-2">
+                    <span id="loadingIndicator" class="text-primary small fw-semibold d-none me-auto align-self-center">
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        Szukanie...
+                    </span>
+
+                    <button type="button" id="btnReset" class="btn btn-outline-secondary w-100 w-lg-auto">
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Wyczyść
                     </button>
-                </div>
-
-                <div class="col-12">
-                    <span id="loadingIndicator" class="text-primary small d-none">
-                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        Wyszukiwanie wypożyczeń...
-                    </span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabela podmieniana przez AJAX -->
-    <div class="card shadow-sm border-0">
-        <div id="borrowingsTableContainer">
-            @await Html.PartialAsync("_BorrowingListPartial", Model)
-        </div>
+    <!-- Kontener na listę wypożyczeń podmienianą przez AJAX -->
+    <div id="borrowingsTableContainer" style="transition: opacity 0.18s ease;">
+        @await Html.PartialAsync("_BorrowingListPartial", Model)
     </div>
 </div>
 
@@ -86,23 +87,34 @@
 
             function fetchFilteredBorrowings() {
                 loader.classList.remove("d-none");
+                container.style.opacity = "0.55";
 
                 const params = new URLSearchParams({
                     searchString: searchInput.value,
                     statusFilter: statusSelect.value
                 });
 
-                fetch(`@Url.Action("Index", "Borrowings")?${params.toString()}`, {
+                const url = `@Url.Action("Index", "Borrowings")?${params.toString()}`;
+
+                fetch(url, {
                     headers: {
                         "X-Requested-With": "XMLHttpRequest"
                     }
                 })
-                .then(response => response.text())
+                .then(response => {
+                    if (!response.ok) throw new Error("Błąd podczas pobierania danych");
+                    return response.text();
+                })
                 .then(html => {
                     container.innerHTML = html;
+                    window.history.replaceState({}, "", url);
+                })
+                .catch(err => {
+                    console.error("Błąd filtrowania wypożyczeń:", err);
                 })
                 .finally(() => {
                     loader.classList.add("d-none");
+                    container.style.opacity = "1";
                 });
             }
 

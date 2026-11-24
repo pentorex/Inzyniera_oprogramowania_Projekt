@@ -2,66 +2,176 @@
 
 @{
     ViewData["Title"] = "Zarządzanie Kategoriami";
+    var categoriesList = Model?.ToList() ?? new List<Biblioteka.Models.Category>();
 }
 
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-1"><i class="bi bi-tags-fill me-2 text-primary"></i>Kategorie</h2>
-            <p class="text-muted mb-0">Zarządzanie gatunkami i działami książek</p>
+    <!-- Nagłówek strony -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary-soft rounded-3 p-3 fs-4 d-none d-sm-flex">
+                <i class="bi bi-tags"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1">Kategorie</h2>
+                <p class="text-muted mb-0 small">Zarządzanie gatunkami i działami książek w katalogu</p>
+            </div>
         </div>
-        <a asp-action="Create" class="btn btn-primary">
+
+        <a asp-action="Create" class="btn btn-accent w-100 w-sm-auto">
             <i class="bi bi-plus-lg me-1"></i>Dodaj kategorię
         </a>
     </div>
 
+    <!-- Komunikaty zwrotne kontrolera -->
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-success border-0 shadow-sm alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zamknij"></button>
         </div>
     }
 
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-danger border-0 shadow-sm alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zamknij"></button>
         </div>
     }
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
+    <!-- Pasek szybkiego filtrowania -->
+    <div class="card border-0 mb-4">
+        <div class="card-body p-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-6 col-lg-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white text-muted border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="categoryQuickFilter" class="form-control border-start-0 ps-0"
+                               placeholder="Filtruj po nazwie lub opisie kategorii..." autocomplete="off" />
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-7 text-md-end">
+                    <span class="text-muted small">
+                        Liczba kategorii: <strong class="text-dark" id="categoriesVisibleCount">@categoriesList.Count</strong>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!categoriesList.Any())
+    {
+        <div class="card border-0 p-5 text-center text-muted">
+            <i class="bi bi-tags fs-1 d-block mb-2 text-primary opacity-50"></i>
+            <h5 class="fw-bold text-dark">Brak kategorii w bazie</h5>
+            <p class="small mb-3">Nie dodano jeszcze żadnego działu ani gatunku książek do systemu.</p>
+            <div>
+                <a asp-action="Create" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Dodaj pierwszą kategorię
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Komunikat braku wyników filtrowania -->
+        <div id="noFilterMatches" class="card border-0 p-5 text-center text-muted d-none">
+            <i class="bi bi-search fs-1 d-block mb-2 text-primary opacity-50"></i>
+            <h6 class="fw-bold text-dark mb-1">Brak dopasowań</h6>
+            <p class="small mb-0">Nie znaleziono kategorii pasującej do wpisanej frazy.</p>
+        </div>
+
+        <!-- Widok kart na urządzenia mobilne (< md) -->
+        <div class="d-md-none d-flex flex-column gap-3" id="categoriesMobileList">
+            @foreach (var category in categoriesList)
+            {
+                var bookCount = category.Books?.Count ?? 0;
+                var searchText = $"{category.Name} {category.Description}".ToLower();
+                string countLabel = bookCount == 1
+                ? "1 pozycja"
+                : (bookCount % 10 >= 2 && bookCount % 10 <= 4 && (bookCount % 100 < 10 || bookCount % 100 >= 20)
+                ? $"{bookCount} pozycje"
+                : $"{bookCount} pozycji");
+
+                <div class="card border-0 category-item" data-category-search="@searchText">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                <div class="bg-primary-soft rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width: 36px; height: 36px;">
+                                    <i class="bi bi-tag-fill"></i>
+                                </div>
+                                <h6 class="fw-bold text-dark mb-0 text-truncate">@category.Name</h6>
+                            </div>
+
+                            <a asp-controller="Books" asp-action="Index" asp-route-categoryId="@category.Id"
+                               class="badge bg-primary-soft text-decoration-none flex-shrink-0">
+                                <i class="bi bi-book me-1"></i>@countLabel
+                            </a>
+                        </div>
+
+                        <p class="text-muted small mb-3">
+                            @(string.IsNullOrWhiteSpace(category.Description) ? "Brak opisu kategorii." : category.Description)
+                        </p>
+
+                        <div class="d-flex gap-2 pt-2 border-top">
+                            <a asp-action="Edit" asp-route-id="@category.Id" class="btn btn-sm btn-outline-primary flex-grow-1">
+                                <i class="bi bi-pencil me-1"></i>Edytuj
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@category.Id" class="btn btn-sm btn-outline-danger flex-grow-1">
+                                <i class="bi bi-trash me-1"></i>Usuń
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Widok tabeli na tablety i komputery (>= md) -->
+        <div class="card border-0 d-none d-md-block" id="categoriesDesktopCard">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+                    <thead>
                         <tr>
                             <th>Nazwa kategorii</th>
                             <th>Opis</th>
-                            <th>Liczba pozycji</th>
+                            <th>Pozycje w katalogu</th>
                             <th class="text-end">Akcje</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (!Model.Any())
-                        {
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-muted">Brak kategorii w bazie.</td>
-                            </tr>
-                        }
-                        @foreach (var category in Model)
+                        @foreach (var category in categoriesList)
                         {
                             var bookCount = category.Books?.Count ?? 0;
-                            <tr>
+                            var searchText = $"{category.Name} {category.Description}".ToLower();
+                            string countLabel = bookCount == 1
+                            ? "1 pozycja"
+                            : (bookCount % 10 >= 2 && bookCount % 10 <= 4 && (bookCount % 100 < 10 || bookCount % 100 >= 20)
+                            ? $"{bookCount} pozycje"
+                            : $"{bookCount} pozycji");
+
+                            <tr class="category-item" data-category-search="@searchText">
                                 <td>
-                                    <span class="badge bg-primary fs-6">@category.Name</span>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-primary-soft rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                             style="width: 38px; height: 38px;">
+                                            <i class="bi bi-tag-fill"></i>
+                                        </div>
+                                        <strong class="text-dark">@category.Name</strong>
+                                    </div>
                                 </td>
-                                <td class="text-secondary small" style="max-width: 400px;">
+                                <td class="text-muted small" style="max-width: 420px;">
                                     @(string.IsNullOrWhiteSpace(category.Description) ? "—" : category.Description)
                                 </td>
                                 <td>
-                                    <span class="badge bg-secondary">@bookCount pozycji</span>
+                                    <a asp-controller="Books" asp-action="Index" asp-route-categoryId="@category.Id"
+                                       class="badge bg-primary-soft text-decoration-none px-3 py-2"
+                                       title="Pokaż książki w tej kategorii">
+                                        <i class="bi bi-book me-1"></i>@countLabel
+                                    </a>
                                 </td>
                                 <td class="text-end">
                                     <a asp-action="Edit" asp-route-id="@category.Id" class="btn btn-sm btn-outline-primary me-1">
@@ -77,5 +187,48 @@
                 </table>
             </div>
         </div>
-    </div>
+    }
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const filterInput = document.getElementById("categoryQuickFilter");
+            const countLabel = document.getElementById("categoriesVisibleCount");
+            const noMatches = document.getElementById("noFilterMatches");
+            const desktopCard = document.getElementById("categoriesDesktopCard");
+            const mobileList = document.getElementById("categoriesMobileList");
+
+            if (!filterInput) return;
+
+            filterInput.addEventListener("input", function () {
+                const query = this.value.trim().toLowerCase();
+                let visibleDesktop = 0;
+
+                document.querySelectorAll("#categoriesDesktopCard .category-item").forEach(row => {
+                    const text = row.getAttribute("data-category-search") || "";
+                    const match = text.includes(query);
+                    row.classList.toggle("d-none", !match);
+                    if (match) visibleDesktop++;
+                });
+
+                document.querySelectorAll("#categoriesMobileList .category-item").forEach(card => {
+                    const text = card.getAttribute("data-category-search") || "";
+                    const match = text.includes(query);
+                    card.classList.toggle("d-none", !match);
+                });
+
+                if (countLabel) {
+                    countLabel.textContent = visibleDesktop;
+                }
+
+                if (noMatches) {
+                    const isEmpty = visibleDesktop === 0;
+                    noMatches.classList.toggle("d-none", !isEmpty);
+                    if (desktopCard) desktopCard.classList.toggle("d-md-none", isEmpty);
+                    if (mobileList) mobileList.classList.toggle("d-none", isEmpty);
+                }
+            });
+        });
+    </script>
+}

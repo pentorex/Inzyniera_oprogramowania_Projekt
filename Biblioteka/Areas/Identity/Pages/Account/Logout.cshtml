@@ -4,18 +4,56 @@
     ViewData["Title"] = "Wylogowanie";
 }
 
-<header>
-    <h1>@ViewData["Title"]</h1>
-    @{
-        if (User.Identity?.IsAuthenticated ?? false)
-        {
-            <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post">
-                <button type="submit" class="nav-link btn btn-link text-dark">Kliknij tutaj, aby się wylogować</button>
-            </form>
-        }
-        else
-        {
-            <p>Pomyślnie wylogowano z aplikacji.</p>
-        }
-    }
-</header>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-5">
+            <div class="card border-0">
+                <div class="card-body p-4 p-sm-5 text-center">
+                    @if (User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <!-- Stan przed wylogowaniem (potwierdzenie) -->
+                        <div class="bg-primary-soft rounded-3 d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width: 56px; height: 56px; font-size: 1.5rem;">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </div>
+                        <h2 class="h4 fw-bold mb-2">Wylogowanie z konta</h2>
+                        <p class="text-muted small mb-4">
+                            Czy na pewno chcesz zakończyć bieżącą sesję w systemie bibliotecznym?
+                        </p>
+
+                        <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post">
+                            <button type="submit" class="btn btn-accent w-100 py-2 fw-semibold mb-2">
+                                <i class="bi bi-box-arrow-right me-1"></i>Wyloguj się
+                            </button>
+                        </form>
+
+                        <a asp-area="" asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary w-100 py-2">
+                            <i class="bi bi-arrow-left me-1"></i>Wróć na stronę główną
+                        </a>
+                    }
+                    else
+                    {
+                        <!-- Stan po pomyślnym wylogowaniu -->
+                        <div class="bg-success-subtle text-success rounded-3 d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width: 56px; height: 56px; font-size: 1.5rem;">
+                            <i class="bi bi-check2-circle"></i>
+                        </div>
+                        <h2 class="h4 fw-bold mb-2">Wylogowano pomyślnie</h2>
+                        <p class="text-muted small mb-4">
+                            Twoja sesja w systemie bibliotecznym została bezpiecznie zakończona.
+                        </p>
+
+                        <div class="d-grid gap-2">
+                            <a asp-page="./Login" class="btn btn-accent py-2 fw-semibold">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Zaloguj się ponownie
+                            </a>
+                            <a asp-area="" asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary py-2">
+                                <i class="bi bi-house me-1"></i>Strona główna
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

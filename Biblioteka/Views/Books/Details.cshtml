@@ -1,122 +1,222 @@
 ﻿@model Biblioteka.Models.Book
+@using Biblioteka.Constants
+@using Biblioteka.Models
 
 @{
     ViewData["Title"] = Model.Title;
     var totalCopies = Model.Copies?.Count ?? 0;
+    var availableCopies = Model.Copies?.Count(c => c.Status == BookStatus.Available) ?? 0;
+    bool isStaff = User.Identity?.IsAuthenticated == true &&
+                   (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian));
 }
 
 <div class="container py-4">
+    <!-- Nawigacja okruszkowa -->
     <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-action="Index">Katalog książek</a></li>
-            <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item">
+                <a asp-action="Index" class="text-decoration-none text-primary fw-medium">
+                    <i class="bi bi-arrow-left me-1"></i>Katalog książek
+                </a>
+            </li>
+            <li class="breadcrumb-item active text-truncate" style="max-width: 260px;" aria-current="page">
+                @Model.Title
+            </li>
         </ol>
     </nav>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-            <div class="row g-4">
+    <div class="card border-0">
+        <div class="card-body p-3 p-sm-4 p-lg-5">
+            <div class="row g-4 g-lg-5">
                 <!-- Lewa kolumna: Informacje o książce, opis i egzemplarze -->
-                <div class="col-lg-8">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-primary">@(Model.Category?.Name ?? "Inne")</span>
-                        <span class="badge bg-light text-dark border">Rok wydania: @Model.PublicationYear</span>
+                <div class="col-12 col-lg-8">
+                    <!-- Odznaki kategorii, roku i dostępności -->
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <span class="badge bg-primary-soft px-3 py-2">
+                            <i class="bi bi-tag me-1"></i>@(Model.Category?.Name ?? "Inne")
+                        </span>
+                        <span class="badge bg-light text-dark border px-3 py-2">
+                            <i class="bi bi-calendar3 me-1"></i>@Model.PublicationYear r.
+                        </span>
+                        @if (availableCopies > 0)
+                        {
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="bi bi-check-circle me-1"></i>Dostępna (@availableCopies z @totalCopies szt.)
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary px-3 py-2">
+                                <i class="bi bi-clock me-1"></i>Brak wolnych sztuk
+                            </span>
+                        }
                     </div>
 
-                    <h2 class="fw-bold mb-2">@Model.Title</h2>
-                    <h5 class="text-muted mb-4">
-                        Autor: <span class="text-dark fw-semibold">@(Model.Author != null ? $"{Model.Author.FirstName} {Model.Author.LastName}" : "Nieznany")</span>
-                    </h5>
-
-                    <h6 class="fw-bold">Opis pozycji:</h6>
-                    <p class="text-secondary leading-relaxed mb-4" style="white-space: pre-line;">
-                        @(string.IsNullOrWhiteSpace(Model.Description) ? "Brak wprowadzonego opisu dla tego tytułu." : Model.Description)
+                    <h1 class="h2 fw-bold mb-2 text-dark">@Model.Title</h1>
+                    <p class="fs-5 text-muted mb-4">
+                        Autor:
+                        <span class="text-dark fw-semibold">
+                            @(Model.Author != null ? $"{Model.Author.FirstName} {Model.Author.LastName}" : "Nieznany")
+                        </span>
                     </p>
 
-                    <!-- Lista fizycznych egzemplarzy w bibliotece -->
-                    <h6 class="fw-bold mb-3">Zarejestrowane egzemplarze:</h6>
-                    @if (Model.Copies == null || !Model.Copies.Any())
-                    {
-                        <div class="alert alert-warning py-2 small">
-                            <i class="bi bi-info-circle me-1"></i>Ta pozycja nie posiada jeszcze zarejestrowanych fizycznych egzemplarzy w bibliotece.
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Numer egzemplarza (Sygnatura)</th>
-                                        <th>Status w bazie</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var copy in Model.Copies)
-                                    {
-                                        <tr>
-                                            <td><code>#@copy.Id</code></td>
-                                            <td>
-                                                <span class="badge bg-secondary">Zarejestrowany na stanie</span>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
+                    <!-- Opis pozycji -->
+                    <div class="mb-4 pb-3 border-bottom">
+                        <h6 class="fw-bold text-uppercase small text-muted mb-2">Opis pozycji</h6>
+                        <p class="text-secondary mb-0" style="white-space: pre-line; line-height: 1.7;">
+                            @(string.IsNullOrWhiteSpace(Model.Description) ? "Brak wprowadzonego opisu dla tego tytułu." : Model.Description)
+                        </p>
+                    </div>
 
-                <!-- Prawa kolumna: Miniaturka okładki, metadane i przyciski -->
-                <div class="col-lg-4 border-start-lg ps-lg-4">
-                    <!-- Miniaturka okładki z linku -->
-                    <div class="text-center mb-3">
-                        @if (!string.IsNullOrWhiteSpace(Model.CoverImageUrl))
+                    <!-- Lista fizycznych egzemplarzy w bibliotece -->
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-uppercase small text-muted mb-0">
+                                Zarejestrowane egzemplarze (@totalCopies)
+                            </h6>
+                        </div>
+
+                        @if (Model.Copies == null || !Model.Copies.Any())
                         {
-                            <div class="position-relative d-inline-block w-100">
-                                <img src="@Model.CoverImageUrl"
-                                     alt="Okładka @Model.Title"
-                                     class="img-fluid rounded shadow-sm border w-100"
-                                     style="max-height: 380px; object-fit: contain; background-color: #f8f9fa;"
-                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'border rounded p-4 text-center text-muted bg-light\'><i class=\'bi bi-image fs-1 d-block mb-2\'></i>Nie udało się wczytać okładki</div>';" />
+                            <div class="alert alert-warning border-0 py-3 small mb-0">
+                                <i class="bi bi-info-circle me-2"></i>Ta pozycja nie posiada jeszcze zarejestrowanych fizycznych egzemplarzy w bibliotece.
                             </div>
                         }
                         else
                         {
-                            <div class="border rounded p-4 text-center text-muted bg-light">
-                                <i class="bi bi-book fs-1 d-block mb-2 text-secondary"></i>
-                                <span class="small">Brak dodanej miniatury okładki</span>
+                            <div class="table-responsive rounded-3 border">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Nr inwentarzowy</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Akcja</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var copy in Model.Copies)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <code class="fw-bold text-primary bg-primary-soft px-2 py-1 rounded">
+                                                        @copy.InventoryNumber
+                                                    </code>
+                                                </td>
+                                                <td>
+                                                    @switch (copy.Status)
+                                                    {
+                                                        case BookStatus.Available:
+                                                            <span class="badge bg-success">
+                                                                <i class="bi bi-check2 me-1"></i>Dostępny
+                                                            </span>
+                                                            break;
+                                                        case BookStatus.Borrowed:
+                                                            <span class="badge bg-danger">
+                                                                <i class="bi bi-arrow-up-right me-1"></i>Wypożyczony
+                                                            </span>
+                                                            break;
+                                                        case BookStatus.Reserved:
+                                                            <span class="badge bg-warning text-dark">
+                                                                <i class="bi bi-bookmark-fill me-1"></i>Zarezerwowany
+                                                            </span>
+                                                            break;
+                                                        default:
+                                                            <span class="badge bg-secondary">@copy.Status</span>
+                                                            break;
+                                                    }
+                                                </td>
+                                                <td class="text-end">
+                                                    @if (copy.Status == BookStatus.Available)
+                                                    {
+                                                        <a asp-controller="Reservations" asp-action="Create" asp-route-bookCopyId="@copy.Id"
+                                                           class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-bookmark-plus me-1"></i>Zarezerwuj
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">Niedostępny</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
                             </div>
                         }
                     </div>
+                </div>
 
-                    <!-- Panel z informacjami katalogowymi -->
-                    <div class="card bg-light border-0 p-3 mb-3">
-                        <h6 class="fw-bold mb-3">Informacje katalogowe</h6>
-                        <ul class="list-unstyled mb-0 small">
-                            <li class="mb-2"><strong>ISBN:</strong> @Model.ISBN</li>
-                            <li class="mb-2"><strong>Wydawca:</strong> @(Model.Publisher ?? "Nie podano")</li>
-                            <li><strong>Łącznie sztuk:</strong> @totalCopies</li>
-                        </ul>
-                    </div>
+                <!-- Prawa kolumna: Okładka, metadane i przyciski akcji -->
+                <div class="col-12 col-lg-4">
+                    <div class="bg-light rounded-4 p-3 p-sm-4 border h-100 d-flex flex-column">
+                        <!-- Miniaturka okładki -->
+                        <div class="text-center mb-4">
+                            @if (!string.IsNullOrWhiteSpace(Model.CoverImageUrl))
+                            {
+                                <div class="bg-white p-2 rounded-3 shadow-sm border">
+                                    <img src="@Model.CoverImageUrl"
+                                         alt="Okładka @Model.Title"
+                                         class="img-fluid rounded w-100"
+                                         style="max-height: 360px; object-fit: contain;"
+                                         onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'py-5 px-3 text-center text-muted\'><i class=\'bi bi-image fs-1 d-block mb-2 text-primary opacity-50\'></i><span class=\'small\'>Nie udało się wczytać okładki</span></div>';" />
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bg-white border rounded-3 py-5 px-3 text-center text-muted">
+                                    <i class="bi bi-book fs-1 d-block mb-2 text-primary opacity-50"></i>
+                                    <span class="small">Brak miniatury okładki</span>
+                                </div>
+                            }
+                        </div>
 
-                    <!-- Przyciski akcji -->
-                    <div class="d-grid gap-2">
-                        @if (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian))
-                        {
-                            <!-- Przycisk dodawania fizycznego egzemplarza -->
-                            <a asp-controller="BookCopies" asp-action="Create" asp-route-bookId="@Model.Id" class="btn btn-success">
-                                <i class="bi bi-plus-circle me-1"></i>Dodaj egzemplarz
+                        <!-- Informacje katalogowe -->
+                        <div class="bg-white rounded-3 p-3 border mb-4">
+                            <h6 class="fw-bold small text-uppercase text-muted mb-3">Informacje katalogowe</h6>
+                            <ul class="list-unstyled mb-0 small">
+                                <li class="d-flex justify-content-between py-1 border-bottom">
+                                    <span class="text-muted">Numer ISBN:</span>
+                                    <span class="fw-semibold font-monospace">@Model.ISBN</span>
+                                </li>
+                                <li class="d-flex justify-content-between py-1 border-bottom">
+                                    <span class="text-muted">Wydawnictwo:</span>
+                                    <span class="fw-semibold text-end">@(Model.Publisher ?? "Nie podano")</span>
+                                </li>
+                                <li class="d-flex justify-content-between pt-1">
+                                    <span class="text-muted">Stan magazynowy:</span>
+                                    <span class="fw-semibold">@totalCopies szt.</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Przyciski akcji -->
+                        <div class="d-grid gap-2 mt-auto">
+                            <a asp-controller="Reservations" asp-action="Create" asp-route-bookId="@Model.Id"
+                               class="btn btn-accent py-2">
+                                <i class="bi bi-bookmark-plus me-2"></i>Zarezerwuj książkę
                             </a>
 
-                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">
-                                <i class="bi bi-pencil me-1"></i>Edytuj dane książki
-                            </a>
-                        }
+                            @if (isStaff)
+                            {
+                                <hr class="my-2 text-muted" />
+                                <div class="small text-uppercase fw-bold text-muted mb-1">Zarządzanie (Pracownik)</div>
 
-                        <a asp-action="Index" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i>Wróć do katalogu
-                        </a>
+                                <a asp-controller="BookCopies" asp-action="Create" asp-route-bookId="@Model.Id"
+                                   class="btn btn-primary">
+                                    <i class="bi bi-plus-circle me-2"></i>Dodaj egzemplarz
+                                </a>
+
+                                <a asp-action="Edit" asp-route-id="@Model.Id"
+                                   class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil me-2"></i>Edytuj dane książki
+                                </a>
+                            }
+
+                            <a asp-action="Index" class="btn btn-outline-secondary mt-1">
+                                <i class="bi bi-arrow-left me-2"></i>Wróć do katalogu
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

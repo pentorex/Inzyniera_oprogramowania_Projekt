@@ -3,92 +3,115 @@
 
 @{
     ViewData["Title"] = "Katalog książek";
+    bool hasActiveAdvancedFilters = ViewBag.CurrentCategoryId != null ||
+                                    ViewBag.CurrentAuthorId != null ||
+                                    ViewBag.CurrentYearFrom != null ||
+                                    ViewBag.CurrentYearTo != null;
 }
 
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-1"><i class="bi bi-book-half me-2 text-primary"></i>Katalog książek</h2>
-            <p class="text-muted mb-0">Dynamiczne przeszukiwanie i filtrowanie zbiorów</p>
+    <!-- Nagłówek strony -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary-soft rounded-3 p-3 fs-4 d-none d-sm-flex">
+                <i class="bi bi-book-half"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1">Katalog książek</h2>
+                <p class="text-muted mb-0 small">Przeszukuj zbiory, filtruj po kategoriach i sprawdzaj dostępność egzemplarzy</p>
+            </div>
         </div>
+
         @if (User.IsInRole(UserRoles.Admin) || User.IsInRole(UserRoles.Librarian))
         {
-            <a asp-action="Create" class="btn btn-primary">
+            <a asp-action="Create" class="btn btn-accent w-100 w-sm-auto">
                 <i class="bi bi-plus-lg me-1"></i>Dodaj nową książkę
             </a>
         }
     </div>
 
     <!-- Panel filtrów dynamicznych -->
-    <div class="card shadow-sm border-0 mb-4 bg-light">
-        <div class="card-body p-4">
+    <div class="card mb-4">
+        <div class="card-body p-3 p-md-4">
             <form id="filtersForm" class="row g-3">
-                <!-- Wyszukiwarka tekstowa -->
-                <div class="col-md-12 col-lg-4">
-                    <label class="form-label fw-bold small text-muted">Fraza (tytuł, autor, ISBN)</label>
+                <!-- Wyszukiwarka tekstowa (zawsze widoczna) -->
+                <div class="col-12 col-md-8 col-lg-5">
+                    <label for="searchString" class="form-label fw-semibold small text-muted mb-1">
+                        Szukaj w katalogu
+                    </label>
                     <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                        <input type="text" id="searchString" name="searchString" class="form-control"
-                               placeholder="Wpisz cokolwiek..." value="@ViewBag.CurrentSearch" autocomplete="off" />
+                        <span class="input-group-text bg-white text-muted border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="searchString" name="searchString" class="form-control border-start-0 ps-0"
+                               placeholder="Tytuł, autor lub numer ISBN..." value="@ViewBag.CurrentSearch" autocomplete="off" />
                     </div>
                 </div>
 
-                <!-- Filtr Kategorii -->
-                <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-bold small text-muted">Kategoria</label>
-                    <select id="categoryId" name="categoryId" class="form-select" asp-items="ViewBag.Categories">
-                        <option value="">-- Wszystkie kategorie --</option>
-                    </select>
-                </div>
+                <!-- Przyciski sterujące (mobile: rozwijanie filtrów + reset) -->
+                <div class="col-12 col-md-4 col-lg-7 d-flex align-items-end justify-content-between justify-content-md-end gap-2">
+                    <button class="btn btn-outline-primary d-md-none flex-grow-1" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#advancedFiltersCollapse"
+                            aria-expanded="@(hasActiveAdvancedFilters ? "true" : "false")"
+                            aria-controls="advancedFiltersCollapse">
+                        <i class="bi bi-sliders me-1"></i>Filtry zaawansowane
+                    </button>
 
-                <!-- Filtr Autora -->
-                <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-bold small text-muted">Autor</label>
-                    <select id="authorId" name="authorId" class="form-select" asp-items="ViewBag.Authors">
-                        <option value="">-- Wszyscy autorzy --</option>
-                    </select>
-                </div>
+                    <span id="loadingIndicator" class="text-primary small fw-semibold d-none me-auto ms-lg-3 align-self-center">
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        Aktualizowanie...
+                    </span>
 
-                <!-- Przycisk resetu -->
-                <div class="col-lg-2 d-flex align-items-end">
-                    <button type="button" id="btnReset" class="btn btn-outline-secondary w-100">
+                    <button type="button" id="btnReset" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Wyczyść
                     </button>
                 </div>
 
-                <!-- Widełki czasowe (Rok od - Rok do) -->
-                <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-bold small text-muted">Rok wydania od</label>
-                    <input type="number" id="yearFrom" name="yearFrom" class="form-control"
-                           placeholder="np. 1905" value="@ViewBag.CurrentYearFrom" />
-                </div>
-                <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-bold small text-muted">Rok wydania do</label>
-                    <input type="number" id="yearTo" name="yearTo" class="form-control"
-                           placeholder="np. 1915" value="@ViewBag.CurrentYearTo" />
-                </div>
-                <div class="col-lg-6 d-flex align-items-end">
-                    <span id="loadingIndicator" class="text-primary small d-none">
-                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        Wyszukiwanie pozycji...
-                    </span>
+                <!-- Filtry szczegółowe (zwijane na mobile, zawsze widoczne od md wzwyż) -->
+                <div class="col-12 collapse d-md-block @(hasActiveAdvancedFilters ? "show" : "")" id="advancedFiltersCollapse">
+                    <div class="row g-3 pt-2 border-top mt-1">
+                        <!-- Filtr Kategorii -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="categoryId" class="form-label fw-semibold small text-muted mb-1">Kategoria</label>
+                            <select id="categoryId" name="categoryId" class="form-select" asp-items="ViewBag.Categories">
+                                <option value="">-- Wszystkie kategorie --</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtr Autora -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="authorId" class="form-label fw-semibold small text-muted mb-1">Autor</label>
+                            <select id="authorId" name="authorId" class="form-select" asp-items="ViewBag.Authors">
+                                <option value="">-- Wszyscy autorzy --</option>
+                            </select>
+                        </div>
+
+                        <!-- Widełki czasowe (Rok od - Rok do) -->
+                        <div class="col-6 col-lg-2">
+                            <label for="yearFrom" class="form-label fw-semibold small text-muted mb-1">Rok od</label>
+                            <input type="number" id="yearFrom" name="yearFrom" class="form-control"
+                                   placeholder="np. 1990" value="@ViewBag.CurrentYearFrom" />
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label for="yearTo" class="form-label fw-semibold small text-muted mb-1">Rok do</label>
+                            <input type="number" id="yearTo" name="yearTo" class="form-control"
+                                   placeholder="np. 2026" value="@ViewBag.CurrentYearTo" />
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Kontener na tabelę podmienianą przez AJAX -->
-    <div class="card shadow-sm border-0">
-        <div id="booksTableContainer">
-            <partial name="_BookListPartial" model="Model" />
-        </div>
+    <!-- Kontener na listę/siatkę książek podmienianą przez AJAX -->
+    <div id="booksTableContainer" style="transition: opacity 0.18s ease;">
+        <partial name="_BookListPartial" model="Model" />
     </div>
 </div>
 
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const form = document.getElementById("filtersForm");
             const searchInput = document.getElementById("searchString");
             const categorySelect = document.getElementById("categoryId");
             const authorSelect = document.getElementById("authorId");
@@ -102,6 +125,7 @@
 
             function fetchFilteredBooks() {
                 loader.classList.remove("d-none");
+                container.style.opacity = "0.55";
 
                 const params = new URLSearchParams({
                     searchString: searchInput.value,
@@ -111,7 +135,9 @@
                     yearTo: yearToInput.value
                 });
 
-                fetch(`@Url.Action("Index", "Books")?${params.toString()}`, {
+                const url = `@Url.Action("Index", "Books")?${params.toString()}`;
+
+                fetch(url, {
                     headers: {
                         "X-Requested-With": "XMLHttpRequest"
                     }
@@ -122,31 +148,29 @@
                 })
                 .then(html => {
                     container.innerHTML = html;
+                    window.history.replaceState({}, "", url);
                 })
                 .catch(err => {
                     console.error("Błąd filtrowania:", err);
                 })
                 .finally(() => {
                     loader.classList.add("d-none");
+                    container.style.opacity = "1";
                 });
             }
 
-            // Opóźnienie 300 ms przy wpisywaniu tekstu i liczb, aby nie przeciążać bazy
             function triggerDebouncedSearch() {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(fetchFilteredBooks, 300);
             }
 
-            // Nasłuchiwanie wpisywania w czasie rzeczywistym
             searchInput.addEventListener("input", triggerDebouncedSearch);
             yearFromInput.addEventListener("input", triggerDebouncedSearch);
             yearToInput.addEventListener("input", triggerDebouncedSearch);
 
-            // Natychmiastowa reakcja przy wyborze z listy rozwijanej
             categorySelect.addEventListener("change", fetchFilteredBooks);
             authorSelect.addEventListener("change", fetchFilteredBooks);
 
-            // Resetowanie wszystkich filtrów
             btnReset.addEventListener("click", function () {
                 searchInput.value = "";
                 categorySelect.value = "";

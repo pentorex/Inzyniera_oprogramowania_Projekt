@@ -1,0 +1,91 @@
+﻿@model Biblioteka.ViewComponents.OverdueNotificationViewModel
+
+@if (Model.OverdueCount > 0)
+{
+    <div class="card border-0 border-start border-4 shadow-sm mb-3 d-print-none"
+         style="border-left-color: #E85D4A !important; background-color: #FFF9F8;"
+         role="alert">
+        <div class="card-body py-3 px-3 px-sm-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0 mt-1 mt-md-0"
+                     style="width: 40px; height: 40px; font-size: 1.15rem; background-color: rgba(232, 93, 74, 0.14); color: #E85D4A;">
+                    <i class="bi bi-exclamation-octagon-fill"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark">
+                        Masz przetrzymane książki (@Model.OverdueCount szt.)
+                        <span class="badge rounded-pill ms-1 fw-semibold"
+                              style="background-color: rgba(232, 93, 74, 0.14); color: #C94432;">
+                            Kara: @Model.TotalFine.ToString("0.00") zł
+                        </span>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-book me-1"></i>@string.Join(", ", Model.OverdueTitles)
+                    </div>
+                </div>
+            </div>
+
+            <a asp-controller="Borrowings" asp-action="MyBorrowings"
+               class="btn btn-sm btn-accent px-3 py-2 fw-semibold flex-shrink-0 w-100 w-md-auto">
+                <i class="bi bi-journal-check me-1"></i>Moje wypożyczenia
+            </a>
+        </div>
+    </div>
+}
+
+@if (Model.DueSoonCount > 0)
+{
+    <div class="card border-0 border-start border-warning border-4 shadow-sm mb-3 d-print-none"
+         style="background-color: #FFFDF7;"
+         role="alert">
+        <div class="card-body py-3 px-3 px-sm-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="bg-warning-subtle text-warning-emphasis rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0 mt-1 mt-md-0"
+                     style="width: 40px; height: 40px; font-size: 1.15rem;">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark">
+                        Zbliża się termin zwrotu (@Model.DueSoonCount szt.)
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-book me-1"></i>@string.Join(", ", Model.DueSoonTitles)
+                    </div>
+                </div>
+            </div>
+
+            <a asp-controller="Borrowings" asp-action="MyBorrowings"
+               class="btn btn-sm btn-outline-secondary px-3 py-2 fw-semibold flex-shrink-0 w-100 w-md-auto">
+                <i class="bi bi-arrow-right me-1"></i>Szczegóły
+            </a>
+        </div>
+    </div>
+}
+
+@if (Model.IsStaff && Model.GlobalOverdueCount > 0)
+{
+    <div class="card border-0 border-start border-primary border-4 shadow-sm mb-3 d-print-none" role="alert">
+        <div class="card-body py-2 px-3 px-sm-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary-soft rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width: 36px; height: 36px; font-size: 1.05rem;">
+                    <i class="bi bi-shield-exclamation"></i>
+                </div>
+                <div class="small text-dark">
+                    <span class="fw-bold">Panel bibliotekarza:</span>
+                    W systemie znajduje się obecnie
+                    <span class="badge rounded-pill fw-semibold mx-1"
+                          style="background-color: #E85D4A; color: #FFFFFF;">
+                        @Model.GlobalOverdueCount
+                    </span>
+                    przetrzymanych egzemplarzy po terminie zwrotu.
+                </div>
+            </div>
+
+            <a asp-controller="Borrowings" asp-action="OverdueReport"
+               class="btn btn-sm btn-outline-primary px-3 fw-semibold flex-shrink-0 w-100 w-md-auto">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Otwórz raport zaległości
+            </a>
+        </div>
+    </div>
+}

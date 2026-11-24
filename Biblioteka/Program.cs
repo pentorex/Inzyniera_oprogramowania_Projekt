@@ -11,13 +11,13 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString, sqlServerOptions =>
         sqlServerOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,                       // Maksymalna liczba prób ponowienia
+            maxRetryCount: 5,                        // Maksymalna liczba prób ponowienia
             maxRetryDelay: TimeSpan.FromSeconds(30), // Maksymalny czas oczekiwania między próbami
-            errorNumbersToAdd: null                 // Opcjonalne dodatkowe kody błędów
+            errorNumbersToAdd: null                  // Opcjonalne dodatkowe kody błędów
         )
     ));
 
-// Rejestracja ASP.NET Core Identity z obs�ug� r�l
+// Rejestracja ASP.NET Core Identity z obsługą ról
 builder.Services.AddDefaultIdentity<ApplicationUser>(options => {
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireDigit = true;
@@ -48,6 +48,8 @@ app.MapRazorPages();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    await context.Database.MigrateAsync();
     await DbInitializer.SeedRolesAndAdminAsync(services);
 }
 

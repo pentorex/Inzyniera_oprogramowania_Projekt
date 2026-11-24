@@ -34,11 +34,82 @@ namespace Biblioteka.Controllers
                     .ThenInclude(bc => bc!.Book)
                         .ThenInclude(book => book!.Author)
                 .Where(b => b.UserId == userId)
-                .OrderBy(b => b.ReturnDate.HasValue) // Najpierw niezwrócone (aktywne)
-                .ThenBy(b => b.DueDate)              // Najbliższy termin zwrotu na górze
+                .OrderBy(b => b.ReturnDate.HasValue)
+                .ThenBy(b => b.DueDate)
                 .ToListAsync();
 
             return View(myBorrowings);
+        }
+
+        // GET: Borrowings/OverdueReport (Raport przeterminowanych wypożyczeń i naliczonych kar)
+        [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
+        public async Task<IActionResult> OverdueReport(string? searchString, string? reportType = "active_overdue", int? minDaysOverdue = null)
+        {
+            var now = DateTime.UtcNow;
+
+            var baseQuery = _context.Borrowings
+                .Include(b => b.BookCopy)
+                    .ThenInclude(bc => bc!.Book)
+                        .ThenInclude(book => book!.Author)
+                .Include(b => b.User)
+                .AsQueryable();
+
+            // Podsumowania globalne do kart statystyk w widoku raportu
+            var activeOverdueList = await baseQuery
+                .Where(b => b.ReturnDate == null && b.DueDate < now)
+                .ToListAsync();
+
+            var historicalFinesTotal = await _context.Borrowings
+                .Where(b => b.ReturnDate != null && b.FineAmount > 0)
+                .SumAsync(b => (decimal?)b.FineAmount) ?? 0m;
+
+            ViewBag.TotalOverdueCount = activeOverdueList.Count;
+            ViewBag.TotalAccruedFines = activeOverdueList.Sum(b => b.CalculateFine(DailyFineRate));
+            ViewBag.TotalHistoricalFines = historicalFinesTotal;
+            ViewBag.DebtorsCount = activeOverdueList.Select(b => b.UserId).Distinct().Count();
+            ViewBag.DailyFineRate = DailyFineRate;
+
+            // Filtrowanie zakresu raportu
+            var reportQuery = reportType switch
+            {
+                "historical_fines" => baseQuery.Where(b => b.ReturnDate != null && b.FineAmount > 0),
+                "all_fines" => baseQuery.Where(b => (b.ReturnDate == null && b.DueDate < now) || (b.ReturnDate != null && b.FineAmount > 0)),
+                _ => baseQuery.Where(b => b.ReturnDate == null && b.DueDate < now) // domyślnie: active_overdue
+            };
+
+            // Wyszukiwanie po czytelniku (imię, nazwisko, e-mail), tytule książki lub numerze inwentarzowym
+            if (!string.IsNullOrWhiteSpace(searchString))
+            {
+                var query = searchString.Trim().ToLower();
+                reportQuery = reportQuery.Where(b =>
+                    (b.User != null && b.User.Email != null && b.User.Email.ToLower().Contains(query)) ||
+                    (b.User != null && (b.User.FirstName + " " + b.User.LastName).ToLower().Contains(query)) ||
+                    (b.BookCopy != null && b.BookCopy.Book != null && b.BookCopy.Book.Title.ToLower().Contains(query)) ||
+                    (b.BookCopy != null && b.BookCopy.InventoryNumber.ToLower().Contains(query))
+                );
+            }
+
+            // Filtr minimalnej liczby dni opóźnienia (dla aktywnych zaległości)
+            if (minDaysOverdue.HasValue && minDaysOverdue.Value > 0)
+            {
+                var cutoffDate = now.Date.AddDays(-minDaysOverdue.Value);
+                reportQuery = reportQuery.Where(b => b.DueDate.Date <= cutoffDate);
+            }
+
+            var reportItems = await reportQuery
+                .OrderBy(b => b.DueDate) // Najstarsze zaległości na samej górze
+                .ToListAsync();
+
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return PartialView("_OverdueReportPartial", reportItems);
+            }
+
+            ViewBag.CurrentSearch = searchString;
+            ViewBag.CurrentReportType = reportType;
+            ViewBag.MinDaysOverdue = minDaysOverdue;
+
+            return View(reportItems);
         }
 
         // GET: Borrowings (Lista wypożyczeń z obsługą wyszukiwania i filtrów)
@@ -51,7 +122,6 @@ namespace Biblioteka.Controllers
                 .Include(b => b.User)
                 .AsQueryable();
 
-            // 1. Wyszukiwanie tekstowe (tytuł, numer inwentarzowy lub e-mail czytelnika)
             if (!string.IsNullOrWhiteSpace(searchString))
             {
                 var query = searchString.Trim().ToLower();
@@ -62,7 +132,6 @@ namespace Biblioteka.Controllers
                 );
             }
 
-            // 2. Filtrowanie po statusie
             if (!string.IsNullOrEmpty(statusFilter))
             {
                 if (statusFilter == "active")
@@ -153,6 +222,17 @@ namespace Biblioteka.Controllers
                 {
                     ModelState.AddModelError("UserId", "Konto tego czytelnika jest nieaktywne.");
                 }
+                else
+                {
+                    // Blokada wypożyczenia, jeśli czytelnik posiada zaległe książki po terminie zwrotu
+                    bool hasOverdueBooks = await _context.Borrowings
+                        .AnyAsync(b => b.UserId == userId && b.ReturnDate == null && b.DueDate < DateTime.UtcNow);
+
+                    if (hasOverdueBooks)
+                    {
+                        ModelState.AddModelError("UserId", "Czytelnik posiada przetrzymane książki po terminie zwrotu. Przed kolejnym wypożyczeniem należy uregulować zaległości.");
+                    }
+                }
             }
 
             if (dueDate.Date < DateTime.UtcNow.Date)
@@ -162,16 +242,50 @@ namespace Biblioteka.Controllers
 
             var distinctCopyIds = selectedBookCopyIds?.Distinct().ToArray() ?? Array.Empty<int>();
             var copiesToBorrow = new List<BookCopy>();
+            var matchingReservations = new List<Reservation>();
 
-            if (distinctCopyIds.Length > 0)
+            if (distinctCopyIds.Length > 0 && !string.IsNullOrWhiteSpace(userId))
             {
                 copiesToBorrow = await _context.BookCopies
+                    .Include(bc => bc.Book)
                     .Where(bc => distinctCopyIds.Contains(bc.Id))
                     .ToListAsync();
 
-                if (copiesToBorrow.Count != distinctCopyIds.Length || copiesToBorrow.Any(bc => bc.Status != BookStatus.Available))
+                var activeReservations = await _context.Reservations
+                    .Where(r => distinctCopyIds.Contains(r.BookCopyId) && r.Status == ReservationStatus.Pending)
+                    .ToListAsync();
+
+                if (copiesToBorrow.Count != distinctCopyIds.Length)
                 {
-                    ModelState.AddModelError("BookCopyId", "Co najmniej jeden z wybranych egzemplarzy nie jest już dostępny.");
+                    ModelState.AddModelError("BookCopyId", "Nie odnaleziono wszystkich wybranych egzemplarzy.");
+                }
+
+                // Szczegółowa walidacja statusu i rezerwacji każdego wybranego egzemplarza
+                foreach (var copy in copiesToBorrow)
+                {
+                    var copyReservations = activeReservations.Where(r => r.BookCopyId == copy.Id).ToList();
+                    bool isReservedByOther = copyReservations.Any(r => r.UserId != userId);
+                    bool isReservedByCurrentUser = copyReservations.Any(r => r.UserId == userId);
+
+                    if (copy.Status == BookStatus.Reserved && !isReservedByCurrentUser)
+                    {
+                        ModelState.AddModelError("BookCopyId", $"Egzemplarz {copy.InventoryNumber} ({copy.Book?.Title}) jest zarezerwowany przez innego czytelnika.");
+                    }
+                    else if (copy.Status == BookStatus.Available && isReservedByOther)
+                    {
+                        ModelState.AddModelError("BookCopyId", $"Egzemplarz {copy.InventoryNumber} ({copy.Book?.Title}) posiada aktywną rezerwację innego czytelnika.");
+                    }
+                    else if (copy.Status != BookStatus.Available && copy.Status != BookStatus.Reserved)
+                    {
+                        ModelState.AddModelError("BookCopyId", $"Egzemplarz {copy.InventoryNumber} ({copy.Book?.Title}) jest obecnie niedostępny.");
+                    }
+                }
+
+                if (ModelState.IsValid)
+                {
+                    matchingReservations = activeReservations
+                        .Where(r => r.UserId == userId)
+                        .ToList();
                 }
             }
 
@@ -193,6 +307,12 @@ namespace Biblioteka.Controllers
 
                     bookCopy.Status = BookStatus.Borrowed;
                     _context.Borrowings.Add(borrowing);
+                }
+
+                // Realizacja aktywnych rezerwacji przypisanych do tego czytelnika
+                foreach (var reservation in matchingReservations)
+                {
+                    reservation.Status = ReservationStatus.Fulfilled;
                 }
 
                 await _context.SaveChangesAsync();
@@ -218,7 +338,7 @@ namespace Biblioteka.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = $"{UserRoles.Admin},{UserRoles.Librarian}")]
-        public async Task<IActionResult> ReturnBook(int id)
+        public async Task<IActionResult> ReturnBook(int id, string? returnUrl = null)
         {
             var borrowing = await _context.Borrowings
                 .Include(b => b.BookCopy)
@@ -236,11 +356,20 @@ namespace Biblioteka.Controllers
 
                 if (borrowing.BookCopy != null)
                 {
-                    borrowing.BookCopy.Status = BookStatus.Available;
+                    // Jeśli na zwracany egzemplarz oczekuje rezerwacja, ustaw status Reserved zamiast Available
+                    bool hasPendingReservation = await _context.Reservations
+                        .AnyAsync(r => r.BookCopyId == borrowing.BookCopyId && r.Status == ReservationStatus.Pending);
+
+                    borrowing.BookCopy.Status = hasPendingReservation ? BookStatus.Reserved : BookStatus.Available;
                 }
 
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = $"Książka została pomyślnie zwrócona. Naliczona kara: {borrowing.FineAmount:0.00} zł.";
+            }
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
             }
 
             return RedirectToAction(nameof(Index));
@@ -253,7 +382,9 @@ namespace Biblioteka.Controllers
                     .ThenInclude(b => b!.Author)
                 .Include(bc => bc.Book)
                     .ThenInclude(b => b!.Categories)
-                .Where(bc => bc.Status == BookStatus.Available)
+                .Include(bc => bc.Reservations.Where(r => r.Status == ReservationStatus.Pending))
+                    .ThenInclude(r => r.User)
+                .Where(bc => bc.Status == BookStatus.Available || bc.Status == BookStatus.Reserved)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(searchString))
