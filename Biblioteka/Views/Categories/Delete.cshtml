@@ -3,37 +3,78 @@
 @{
     ViewData["Title"] = "Usuń Kategorię";
     var bookCount = Model.Books?.Count ?? 0;
+
+    string countLabel = bookCount == 1
+        ? "1 pozycja w katalogu"
+        : (bookCount % 10 >= 2 && bookCount % 10 <= 4 && (bookCount % 100 < 10 || bookCount % 100 >= 20)
+            ? $"{bookCount} pozycje w katalogu"
+            : $"{bookCount} pozycji w katalogu");
 }
 
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-sm border-danger border-2">
-                <div class="card-header bg-danger text-white py-3">
-                    <h5 class="card-title mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Potwierdzenie usunięcia kategorii</h5>
-                </div>
-                <div class="card-body p-4">
-                    <p class="mb-3">Czy na pewno chcesz usunąć tę kategorię?</p>
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card border-0">
+                <div class="card-body p-3 p-sm-4 p-md-5">
+                    <!-- Nagłówek karty -->
+                    <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+                        <div class="bg-danger-subtle text-danger rounded-3 p-3 fs-4 flex-shrink-0">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div>
+                            <h2 class="h4 fw-bold mb-1">Usuń kategorię</h2>
+                            <p class="text-muted mb-0 small">Potwierdź trwałe usunięcie działu lub gatunku z bazy biblioteki</p>
+                        </div>
+                    </div>
 
-                    <div class="alert alert-light border p-3 mb-3">
-                        <h5 class="fw-bold mb-1">@Model.Name</h5>
-                        <p class="text-muted small mb-0">Przypisane książki: <strong>@bookCount</strong></p>
+                    <p class="text-muted small mb-3">
+                        Czy na pewno chcesz usunąć poniższą kategorię z systemu? Tej operacji nie można cofnąć.
+                    </p>
+
+                    <!-- Karta podsumowania kategorii -->
+                    <div class="bg-light border rounded-3 p-3 mb-3 d-flex align-items-start gap-3">
+                        <div class="bg-primary-soft rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="width: 44px; height: 44px;">
+                            <i class="bi bi-tag-fill fs-5"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <h5 class="fw-bold text-dark mb-1 text-truncate">@Model.Name</h5>
+                            @if (!string.IsNullOrWhiteSpace(Model.Description))
+                            {
+                                <p class="text-muted small mb-2">@Model.Description</p>
+                            }
+                            <span class="badge bg-primary-soft">
+                                <i class="bi bi-book me-1"></i>@countLabel
+                            </span>
+                        </div>
                     </div>
 
                     @if (bookCount > 0)
                     {
-                        <div class="alert alert-warning small">
-                            <i class="bi bi-exclamation-circle me-1"></i>
-                            <strong>Uwaga:</strong> Kategoria zawiera książki w katalogu. Przypisz te pozycje do innej kategorii przed usunięciem.
+                        <div class="bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-3 p-3 small mb-4 d-flex align-items-start gap-2">
+                            <i class="bi bi-exclamation-circle-fill fs-5 flex-shrink-0 mt-1"></i>
+                            <div>
+                                <strong>Nie można usunąć kategorii.</strong>
+                                Ten dział zawiera przypisane książki w katalogu. Przypisz te pozycje do innej kategorii przed usunięciem.
+                                <div class="mt-2">
+                                    <a asp-controller="Books" asp-action="Index" asp-route-categoryId="@Model.Id"
+                                       class="fw-semibold text-decoration-none text-warning-emphasis">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Zobacz książki w tej kategorii
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     }
 
                     <form asp-action="Delete" method="post">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="Id" />
-                        <div class="d-flex justify-content-between">
-                            <a asp-action="Index" class="btn btn-outline-secondary">Anuluj</a>
-                            <button type="submit" class="btn btn-danger" @(bookCount > 0 ? "disabled" : "")>
+
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mt-4 pt-2">
+                            <a asp-action="Index" class="btn btn-outline-secondary order-2 order-sm-1">
+                                <i class="bi bi-arrow-left me-1"></i>Anuluj
+                            </a>
+                            <button type="submit" class="btn btn-danger px-4 py-2 order-1 order-sm-2" @(bookCount > 0 ? "disabled" : "")>
                                 <i class="bi bi-trash me-1"></i>Usuń kategorię
                             </button>
                         </div>

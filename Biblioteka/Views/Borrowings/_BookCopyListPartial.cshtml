@@ -1,48 +1,72 @@
 ﻿@model IEnumerable<Biblioteka.Models.BookCopy>
 
-<div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
-    <table class="table table-hover align-middle mb-0">
-        <thead class="table-light sticky-top">
-            <tr>
-                <th style="width: 60px;">Wybierz</th>
-                <th>Tytuł i Autor</th>
-                <th>ISBN</th>
-                <th>Nr inwentarzowy</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (!Model.Any())
-            {
+@if (!Model.Any())
+{
+    <div class="p-5 text-center text-muted">
+        <i class="bi bi-journal-x fs-1 d-block mb-2 text-primary opacity-50"></i>
+        <h6 class="fw-bold text-dark mb-1">Brak dostępnych egzemplarzy</h6>
+        <p class="small mb-0">Nie znaleziono wolnych sztuk spełniających podane kryteria wyszukiwania.</p>
+    </div>
+}
+else
+{
+    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="sticky-top bg-light" style="z-index: 1;">
                 <tr>
-                    <td colspan="4" class="text-center py-4 text-muted">
-                        Nie znaleziono dostępnych egzemplarzy.
-                    </td>
+                    <th style="width: 48px;" class="ps-3">
+                        <span class="visually-hidden">Wybierz</span>
+                    </th>
+                    <th>Tytuł i autor</th>
+                    <th class="d-none d-md-table-cell">ISBN</th>
+                    <th class="text-end pe-3">Nr inwentarzowy</th>
                 </tr>
-            }
-            else
-            {
+            </thead>
+            <tbody>
                 @foreach (var copy in Model)
                 {
+                    var book = copy.Book;
+                    var authorName = book?.Author != null
+                    ? $"{book.Author.FirstName} {book.Author.LastName}"
+                    : "Autor nieznany";
+
                     <tr>
-                        <td>
-                            <div class="form-check">
-                                <input class="form-check-input copy-checkbox" type="checkbox"
-                                       value="@copy.Id" id="copy_@copy.Id" />
+                        <td class="ps-3">
+                            <div class="form-check m-0">
+                                <input class="form-check-input copy-checkbox"
+                                       type="checkbox"
+                                       value="@copy.Id"
+                                       id="copy_@copy.Id"
+                                       style="width: 1.15rem; height: 1.15rem; cursor: pointer;" />
                             </div>
                         </td>
                         <td>
-                            <label class="form-check-label fw-bold d-block" for="copy_@copy.Id" style="cursor: pointer;">
-                                @copy.Book?.Title
+                            <label class="form-check-label fw-bold text-dark d-block mb-0"
+                                   for="copy_@copy.Id"
+                                   style="cursor: pointer;">
+                                @(book?.Title ?? "Nieznany tytuł")
                             </label>
-                            <span class="text-muted small">
-                                Autor: @(copy.Book?.Author != null ? $"{copy.Book.Author.FirstName} {copy.Book.Author.LastName}" : "Brak")
-                            </span>
+                            <div class="small text-muted">
+                                <span>@authorName</span>
+                                @if (!string.IsNullOrWhiteSpace(book?.ISBN))
+                                {
+                                    <span class="d-md-none ms-1 text-secondary font-monospace">
+                                        &bull; ISBN: @book.ISBN
+                                    </span>
+                                }
+                            </div>
                         </td>
-                        <td><code>@copy.Book?.ISBN</code></td>
-                        <td><span class="badge bg-secondary">@copy.InventoryNumber</span></td>
+                        <td class="d-none d-md-table-cell">
+                            <span class="small text-muted font-monospace">@(book?.ISBN ?? "—")</span>
+                        </td>
+                        <td class="text-end pe-3">
+                            <code class="fw-semibold text-primary bg-primary-soft px-2 py-1 rounded">
+                                @copy.InventoryNumber
+                            </code>
+                        </td>
                     </tr>
                 }
-            }
-        </tbody>
-    </table>
-</div>
+            </tbody>
+        </table>
+    </div>
+}

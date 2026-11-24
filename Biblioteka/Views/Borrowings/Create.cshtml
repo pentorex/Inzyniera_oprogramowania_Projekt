@@ -5,103 +5,134 @@
 }
 
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-1"><i class="bi bi-journal-plus me-2 text-primary"></i>Nowe wypożyczenie</h2>
-            <p class="text-muted mb-0">Wyszukaj egzemplarz po tytule, autorze, ISBN lub numerze inwentarzowym</p>
+    <!-- Nagłówek strony -->
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-primary-soft rounded-3 p-3 fs-4 d-none d-sm-flex">
+                <i class="bi bi-journal-plus"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1">Nowe wypożyczenie</h2>
+                <p class="text-muted mb-0 small">Wyszukaj dostępne egzemplarze i przypisz je do konta czytelnika</p>
+            </div>
         </div>
-        <a asp-action="Index" class="btn btn-outline-secondary">
+
+        <a asp-action="Index" class="btn btn-outline-secondary w-100 w-sm-auto">
             <i class="bi bi-arrow-left me-1"></i>Powrót do listy
         </a>
     </div>
 
     <form asp-action="Create" method="post" id="borrowingForm">
-        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 mb-4"></div>
 
-        <!-- Panel filtrów dynamicznych (wyszukiwarka egzemplarzy) -->
-        <div class="card shadow-sm border-0 mb-4 bg-light">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">1. Wybierz egzemplarz książki</h5>
+        <!-- KROK 1: Wyszukiwarka i wybór egzemplarzy -->
+        <div class="card border-0 mb-4">
+            <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-pill px-2 py-1">1</span>
+                    <h5 class="fw-bold mb-0 fs-6">Wybierz egzemplarze do wypożyczenia</h5>
+                </div>
+
+                <span class="badge bg-primary-soft px-3 py-2">
+                    <i class="bi bi-check2-square me-1"></i>Wybrano: <strong id="selectedCountBadge">0</strong> szt.
+                </span>
+            </div>
+
+            <div class="card-body p-3 p-md-4 border-bottom bg-light bg-opacity-50">
                 <div id="filtersForm" class="row g-3">
-                    <!-- Wyszukiwarka tekstowa (Tytuł, Autor, ISBN, Nr inwentarzowy) -->
-                    <div class="col-md-12 col-lg-5">
-                        <label class="form-label fw-bold small text-muted">Fraza (tytuł, autor, ISBN, nr inw.)</label>
+                    <!-- Wyszukiwarka tekstowa -->
+                    <div class="col-12 col-lg-5">
+                        <label for="searchString" class="form-label fw-semibold small text-muted mb-1">
+                            Szukaj egzemplarza
+                        </label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                            <input type="text" id="searchString" name="searchString" class="form-control"
-                                   placeholder="Wpisz tytuł, ISBN lub numer inwentarzowy..." value="@ViewBag.CurrentSearch" autocomplete="off" />
+                            <span class="input-group-text bg-white text-muted border-end-0">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="searchString" name="searchString" class="form-control border-start-0 ps-0"
+                                   placeholder="Tytuł, autor, ISBN lub nr inwentarzowy..." value="@ViewBag.CurrentSearch" autocomplete="off" />
                         </div>
                     </div>
 
                     <!-- Filtr Kategorii -->
-                    <div class="col-md-6 col-lg-3">
-                        <label class="form-label fw-bold small text-muted">Kategoria</label>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label for="categoryId" class="form-label fw-semibold small text-muted mb-1">Kategoria</label>
                         <select id="categoryId" name="categoryId" class="form-select" asp-items="ViewBag.Categories">
                             <option value="">-- Wszystkie kategorie --</option>
                         </select>
                     </div>
 
                     <!-- Filtr Autora -->
-                    <div class="col-md-6 col-lg-3">
-                        <label class="form-label fw-bold small text-muted">Autor</label>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label for="authorId" class="form-label fw-semibold small text-muted mb-1">Autor</label>
                         <select id="authorId" name="authorId" class="form-select" asp-items="ViewBag.AuthorId">
                             <option value="">-- Wszyscy autorzy --</option>
                         </select>
                     </div>
 
                     <!-- Przycisk resetu -->
-                    <div class="col-lg-1 d-flex align-items-end">
+                    <div class="col-12 col-lg-1 d-flex align-items-end">
                         <button type="button" id="btnReset" class="btn btn-outline-secondary w-100" title="Wyczyść filtry">
                             <i class="bi bi-arrow-counterclockwise"></i>
+                            <span class="d-lg-none ms-1">Wyczyść filtry</span>
                         </button>
                     </div>
 
                     <div class="col-12">
-                        <span id="loadingIndicator" class="text-primary small d-none">
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Wyszukiwanie dostępnych egzemplarzy...
-                        </span>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <span class="text-muted small">
+                                <i class="bi bi-info-circle me-1 text-primary"></i>Zaznacz pola wyboru przy wybranych egzemplarzach (możesz wybrać kilka pozycji naraz).
+                            </span>
+                            <span id="loadingIndicator" class="text-primary small fw-semibold d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                Wyszukiwanie...
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Kontener na tabelę z egzemplarzami podmienianą przez AJAX -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white py-3">
-                <span class="text-danger small">* Zaznacz jedno pole wyboru przy wybranym egzemplarzu</span>
-            </div>
-            <div id="bookCopiesTableContainer">
+            <!-- Kontener na tabelę/listę egzemplarzy podmienianą przez AJAX -->
+            <div id="bookCopiesTableContainer" style="transition: opacity 0.18s ease;">
                 @await Html.PartialAsync("_BookCopyListPartial", ViewData["AvailableCopies"] ?? new List<Biblioteka.Models.BookCopy>())
             </div>
         </div>
-        <span asp-validation-for="BookCopyId" class="text-danger d-block mb-3"></span>
+        <span asp-validation-for="BookCopyId" class="text-danger small d-block mb-3"></span>
 
-        <!-- Sekcja danych wypożyczenia -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3">2. Dane wypożyczenia</h5>
+        <!-- KROK 2: Dane czytelnika i termin zwrotu -->
+        <div class="card border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-pill px-2 py-1">2</span>
+                    <h5 class="fw-bold mb-0 fs-6">Dane czytelnika i termin zwrotu</h5>
+                </div>
+            </div>
+            <div class="card-body p-3 p-md-4">
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label asp-for="UserId" class="form-label fw-bold">Czytelnik</label>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="UserId" class="form-label fw-semibold small text-muted mb-1">Czytelnik</label>
                         <select asp-for="UserId" class="form-select" asp-items="ViewBag.UserId">
-                            <option value="">-- Wybierz użytkownika --</option>
+                            <option value="">-- Wybierz czytelnika z listy --</option>
                         </select>
-                        <span asp-validation-for="UserId" class="text-danger"></span>
+                        <span asp-validation-for="UserId" class="text-danger small"></span>
                     </div>
 
-                    <div class="col-md-6">
-                        <label asp-for="DueDate" class="form-label fw-bold">Termin zwrotu</label>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="DueDate" class="form-label fw-semibold small text-muted mb-1">Termin zwrotu</label>
                         <input asp-for="DueDate" class="form-control" type="date" />
-                        <span asp-validation-for="DueDate" class="text-danger"></span>
+                        <span asp-validation-for="DueDate" class="text-danger small"></span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="form-group mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">
-                <i class="bi bi-check-lg me-1"></i>Zatwierdź wypożyczenie
+        <!-- Przyciski formularza -->
+        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+            <a asp-action="Index" class="btn btn-outline-secondary px-4 order-2 order-sm-1">
+                Anuluj
+            </a>
+            <button type="submit" class="btn btn-accent px-4 py-2 order-1 order-sm-2">
+                <i class="bi bi-check2-circle me-2"></i>Zatwierdź wypożyczenie
             </button>
         </div>
     </form>
@@ -121,12 +152,19 @@
             const container = document.getElementById("bookCopiesTableContainer");
             const loader = document.getElementById("loadingIndicator");
             const form = document.getElementById("borrowingForm");
+            const selectedCountBadge = document.getElementById("selectedCountBadge");
 
             // Główny zbiór trzymający ID zaznaczonych elementów w pamięci przeglądarki
             const selectedCopyIds = new Set();
             let debounceTimer = null;
 
-            // Funkcja, która przechodzi przez wszystkie checkboxy w tabeli i zaznacza te, których ID jest w secie
+            function updateSelectedBadge() {
+                if (selectedCountBadge) {
+                    selectedCountBadge.textContent = selectedCopyIds.size;
+                }
+            }
+
+            // Przywraca zaznaczenia checkboxów po podmianie HTML przez AJAX
             function restoreSelections() {
                 const checkboxes = container.querySelectorAll(".copy-checkbox");
                 checkboxes.forEach(checkbox => {
@@ -134,9 +172,10 @@
                         checkbox.checked = true;
                     }
                 });
+                updateSelectedBadge();
             }
 
-            // Globalna nasłuchiwarka zmian (działa nawet po podmieniawaniu tabeli przez AJAX)
+            // Globalna nasłuchiwarka zmian checkboxów
             document.addEventListener("change", function (event) {
                 if (event.target.classList.contains("copy-checkbox")) {
                     const id = event.target.value;
@@ -145,12 +184,13 @@
                     } else {
                         selectedCopyIds.delete(id);
                     }
-                    console.log("Aktualnie zaznaczone ID w pamięci:", Array.from(selectedCopyIds));
+                    updateSelectedBadge();
                 }
             });
 
             function fetchFilteredCopies() {
                 loader.classList.remove("d-none");
+                container.style.opacity = "0.55";
 
                 const params = new URLSearchParams({
                     searchString: searchInput.value,
@@ -169,11 +209,12 @@
                 })
                 .then(html => {
                     container.innerHTML = html;
-                    restoreSelections(); // Natychmiast przywróć zaznaczenia po wstawieniu nowego HTML
+                    restoreSelections();
                 })
                 .catch(err => console.error("Błąd filtrowania:", err))
                 .finally(() => {
                     loader.classList.add("d-none");
+                    container.style.opacity = "1";
                 });
             }
 
@@ -182,7 +223,6 @@
                 debounceTimer = setTimeout(fetchFilteredCopies, 300);
             }
 
-            // Nasłuchiwanie zmian w filtrach
             searchInput.addEventListener("input", triggerDebouncedSearch);
             categorySelect.addEventListener("change", fetchFilteredCopies);
             authorSelect.addEventListener("change", fetchFilteredCopies);
@@ -194,7 +234,7 @@
                 fetchFilteredCopies();
             });
 
-            // Przed wysłaniem formularza do backendu generujemy ukryte inputy dla WSZYSTKICH zaznaczonych pozycji
+            // Generuje ukryte inputy dla wszystkich zaznaczonych pozycji przed wysłaniem
             form.addEventListener("submit", function () {
                 document.querySelectorAll(".hidden-selected-copy").forEach(el => el.remove());
 

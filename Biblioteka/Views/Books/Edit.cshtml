@@ -8,23 +8,37 @@
 }
 
 <div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <nav aria-label="breadcrumb" class="mb-3">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a asp-action="Index">Katalog książek</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Edycja pozycji</li>
-                </ol>
-            </nav>
+    <!-- Nawigacja okruszkowa -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small mb-0">
+            <li class="breadcrumb-item">
+                <a asp-action="Index" class="text-decoration-none">Katalog książek</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a asp-action="Details" asp-route-id="@Model.Id" class="text-decoration-none text-truncate d-inline-block align-bottom" style="max-width: 220px;">
+                    @Model.Title
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Edycja pozycji</li>
+        </ol>
+    </nav>
 
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-pencil-square me-2"></i>Edycja książki: @Model.Title
-                    </h5>
-                </div>
+    <div class="row g-4 justify-content-center">
+        <!-- Główna kolumna z formularzem -->
+        <div class="col-12 col-lg-8">
+            <div class="card border-0">
+                <div class="card-body p-3 p-sm-4 p-md-5">
+                    <!-- Nagłówek formularza -->
+                    <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+                        <div class="bg-primary-soft rounded-3 p-3 fs-4 flex-shrink-0">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <h2 class="h4 fw-bold mb-1">Edycja książki</h2>
+                            <p class="text-muted mb-0 small text-truncate">@Model.Title</p>
+                        </div>
+                    </div>
 
-                <div class="card-body p-4">
                     <form asp-action="Edit" method="post">
                         @Html.AntiForgeryToken()
 
@@ -32,44 +46,52 @@
                         <input type="hidden" asp-for="Id" />
 
                         <!-- Podsumowanie błędów walidacji -->
-                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+                        <div asp-validation-summary="All" class="text-danger small mb-3"></div>
 
                         <!-- Tytuł -->
                         <div class="mb-3">
-                            <label asp-for="Title" class="form-label fw-bold">Tytuł książki</label>
+                            <label asp-for="Title" class="form-label fw-semibold small text-muted mb-1">Tytuł książki</label>
                             <input asp-for="Title" class="form-control" placeholder="Wprowadź tytuł..." />
                             <span asp-validation-for="Title" class="text-danger small"></span>
                         </div>
 
                         <!-- Autor i Kategorie -->
                         <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="AuthorId" class="form-label fw-bold">Autor</label>
+                            <div class="col-12 col-md-6">
+                                <label asp-for="AuthorId" class="form-label fw-semibold small text-muted mb-1">Autor</label>
                                 <select asp-for="AuthorId" class="form-select" asp-items="ViewBag.AuthorId">
                                     <option value="">-- Wybierz autora --</option>
                                 </select>
                                 <span asp-validation-for="AuthorId" class="text-danger small"></span>
                             </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold">Kategorie</label>
-                                <div class="border rounded p-3 bg-light" style="max-height: 180px; overflow-y: auto;">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold small text-muted mb-1">Kategorie</label>
+                                <div class="border rounded-3 p-3 bg-light" style="max-height: 175px; overflow-y: auto;">
                                     @if (ViewBag.CategoriesList != null)
                                     {
-                                        foreach (var category in (IEnumerable<Biblioteka.Models.Category>)ViewBag.CategoriesList)
+                                        var categories = (IEnumerable<Biblioteka.Models.Category>)ViewBag.CategoriesList;
+                                        if (categories.Any())
                                         {
-                                            var isChecked = currentSelectedIds.Contains(category.Id);
-                                            <div class="form-check">
-                                                <input class="form-check-input"
-                                                       type="checkbox"
-                                                       name="selectedCategoryIds"
-                                                       value="@category.Id"
-                                                       id="cat_@category.Id"
-                                                @(isChecked ? "checked" : "") />
-                                                <label class="form-check-label" for="cat_@category.Id">
-                                                    @category.Name
-                                                </label>
-                                            </div>
+                                            foreach (var category in categories)
+                                            {
+                                                var isChecked = currentSelectedIds.Contains(category.Id);
+                                                <div class="form-check mb-1">
+                                                    <input class="form-check-input"
+                                                           type="checkbox"
+                                                           name="selectedCategoryIds"
+                                                           value="@category.Id"
+                                                           id="cat_@category.Id"
+                                                           @(isChecked ? "checked" : "") />
+                                                    <label class="form-check-label small" for="cat_@category.Id">
+                                                        @category.Name
+                                                    </label>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Brak dostępnych kategorii.</span>
                                         }
                                     }
                                     else
@@ -82,18 +104,20 @@
 
                         <!-- ISBN, Rok wydania, Wydawca -->
                         <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label asp-for="ISBN" class="form-label fw-bold">Numer ISBN</label>
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label asp-for="ISBN" class="form-label fw-semibold small text-muted mb-1">Numer ISBN</label>
                                 <input asp-for="ISBN" class="form-control" placeholder="np. 978-83-01-00000-0" />
                                 <span asp-validation-for="ISBN" class="text-danger small"></span>
                             </div>
-                            <div class="col-md-4">
-                                <label asp-for="PublicationYear" class="form-label fw-bold">Rok wydania</label>
+
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label asp-for="PublicationYear" class="form-label fw-semibold small text-muted mb-1">Rok wydania</label>
                                 <input asp-for="PublicationYear" class="form-control" type="number" />
                                 <span asp-validation-for="PublicationYear" class="text-danger small"></span>
                             </div>
-                            <div class="col-md-4">
-                                <label asp-for="Publisher" class="form-label fw-bold">Wydawnictwo</label>
+
+                            <div class="col-12 col-md-4">
+                                <label asp-for="Publisher" class="form-label fw-semibold small text-muted mb-1">Wydawnictwo</label>
                                 <input asp-for="Publisher" class="form-control" placeholder="Nazwa wydawnictwa" />
                                 <span asp-validation-for="Publisher" class="text-danger small"></span>
                             </div>
@@ -101,35 +125,78 @@
 
                         <!-- Adres URL okładki -->
                         <div class="mb-3">
-                            <label asp-for="CoverImageUrl" class="form-label fw-bold">Adres URL okładki</label>
-                            <input asp-for="CoverImageUrl" class="form-control" placeholder="https://example.com/okladka.jpg" />
+                            <label asp-for="CoverImageUrl" class="form-label fw-semibold small text-muted mb-1">Adres URL okładki</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-muted border-end-0">
+                                    <i class="bi bi-image"></i>
+                                </span>
+                                <input asp-for="CoverImageUrl" class="form-control border-start-0 ps-0" placeholder="https://example.com/okladka.jpg" />
+                            </div>
                             <span asp-validation-for="CoverImageUrl" class="text-danger small"></span>
                         </div>
 
                         <!-- Opis -->
                         <div class="mb-4">
-                            <label asp-for="Description" class="form-label fw-bold">Opis / Streszczenie</label>
+                            <label asp-for="Description" class="form-label fw-semibold small text-muted mb-1">Opis / Streszczenie</label>
                             <textarea asp-for="Description" class="form-control" rows="4" placeholder="Krótki opis książki..."></textarea>
                             <span asp-validation-for="Description" class="text-danger small"></span>
                         </div>
 
-                        <hr class="my-4" />
-
                         <!-- Przyciski akcji -->
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a asp-action="Index" class="btn btn-outline-secondary">
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 pt-3 border-top">
+                            <a asp-action="Index" class="btn btn-outline-secondary order-3 order-sm-1">
                                 <i class="bi bi-arrow-left me-1"></i>Anuluj i wróć
                             </a>
-                            <div>
-                                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-info me-2">
+                            <div class="d-flex flex-column flex-sm-row gap-2 order-1 order-sm-2">
+                                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-primary order-2 order-sm-1">
                                     <i class="bi bi-eye me-1"></i>Szczegóły
                                 </a>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg me-1"></i>Zapisz zmiany
+                                <button type="submit" class="btn btn-accent px-4 py-2 order-1 order-sm-2">
+                                    <i class="bi bi-check2-circle me-1"></i>Zapisz zmiany
                                 </button>
                             </div>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prawa kolumna: podgląd okładki w katalogu -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 sticky-lg-top" style="top: 1.5rem; z-index: 1;">
+                <div class="card-body p-4 text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-2 text-muted small fw-semibold mb-3">
+                        <i class="bi bi-eye text-primary"></i>
+                        <span>Podgląd w katalogu</span>
+                    </div>
+
+                    <div class="mx-auto mb-3" style="max-width: 195px;">
+                        <img id="coverPreviewImg"
+                             src="@Model.CoverImageUrl"
+                             alt="Podgląd okładki"
+                             class="book-cover-img w-100 rounded-3 shadow-sm @(string.IsNullOrWhiteSpace(Model.CoverImageUrl) ? "d-none" : "")"
+                             style="aspect-ratio: 2 / 3; object-fit: cover;" />
+
+                        <div id="coverPreviewPlaceholder"
+                             class="book-cover-placeholder rounded-3 shadow-sm d-flex flex-column justify-content-between p-3 text-start @(!string.IsNullOrWhiteSpace(Model.CoverImageUrl) ? "d-none" : "")"
+                             style="aspect-ratio: 2 / 3;">
+                            <div class="book-cover-spine"></div>
+                            <div class="ps-2">
+                                <span class="badge bg-white bg-opacity-25 text-white small mb-2">Katalog</span>
+                                <div id="previewTitleOverlay" class="fw-bold text-white small lh-sm" style="word-break: break-word;">
+                                    @Model.Title
+                                </div>
+                            </div>
+                            <div class="ps-2">
+                                <div id="previewAuthorOverlay" class="text-white-50 small text-truncate">
+                                    Autor książki
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 id="previewTitleText" class="fw-bold text-dark mb-1 text-truncate">@Model.Title</h6>
+                    <p id="previewAuthorText" class="text-muted small mb-0 text-truncate">Nie wybrano autora</p>
                 </div>
             </div>
         </div>
@@ -138,4 +205,63 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const titleInput = document.getElementById("Title");
+            const authorSelect = document.getElementById("AuthorId");
+            const coverInput = document.getElementById("CoverImageUrl");
+
+            const previewImg = document.getElementById("coverPreviewImg");
+            const previewPlaceholder = document.getElementById("coverPreviewPlaceholder");
+            const previewTitleOverlay = document.getElementById("previewTitleOverlay");
+            const previewAuthorOverlay = document.getElementById("previewAuthorOverlay");
+            const previewTitleText = document.getElementById("previewTitleText");
+            const previewAuthorText = document.getElementById("previewAuthorText");
+
+            function updateTextPreview() {
+                const title = titleInput && titleInput.value.trim()
+                    ? titleInput.value.trim()
+                    : "Tytuł książki";
+
+                let author = "Nie wybrano autora";
+                if (authorSelect && authorSelect.selectedIndex > 0) {
+                    author = authorSelect.options[authorSelect.selectedIndex].text;
+                }
+
+                previewTitleOverlay.textContent = title;
+                previewTitleText.textContent = title;
+                previewAuthorOverlay.textContent = authorSelect && authorSelect.selectedIndex > 0 ? author : "Autor książki";
+                previewAuthorText.textContent = author;
+            }
+
+            function updateCoverPreview() {
+                const url = coverInput ? coverInput.value.trim() : "";
+                if (!url) {
+                    previewImg.classList.add("d-none");
+                    previewPlaceholder.classList.remove("d-none");
+                    return;
+                }
+
+                previewImg.onload = function () {
+                    previewImg.classList.remove("d-none");
+                    previewPlaceholder.classList.add("d-none");
+                };
+
+                previewImg.onerror = function () {
+                    previewImg.classList.add("d-none");
+                    previewPlaceholder.classList.remove("d-none");
+                };
+
+                previewImg.src = url;
+            }
+
+            if (titleInput) titleInput.addEventListener("input", updateTextPreview);
+            if (authorSelect) authorSelect.addEventListener("change", updateTextPreview);
+            if (coverInput) coverInput.addEventListener("input", updateCoverPreview);
+
+            updateTextPreview();
+            updateCoverPreview();
+        });
+    </script>
 }

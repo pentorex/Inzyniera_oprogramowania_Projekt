@@ -4,42 +4,110 @@
     ViewData["Title"] = "Logowanie";
 }
 
-<h1>@ViewData["Title"]</h1>
-<div class="row">
-    <div class="col-md-6">
-        <section>
-            <form id="account" method="post">
-                <h2>Użyj zarejestrowanego konta</h2>
-                <hr />
-                <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-5">
+            <div class="card border-0">
+                <div class="card-body p-4 p-sm-5">
+                    <!-- Nagłówek karty -->
+                    <div class="text-center mb-4">
+                        <div class="bg-primary-soft rounded-3 d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width: 56px; height: 56px; font-size: 1.5rem;">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                        </div>
+                        <h2 class="h4 fw-bold mb-1">Witaj ponownie</h2>
+                        <p class="text-muted small mb-0">Zaloguj się na swoje konto w systemie bibliotecznym</p>
+                    </div>
 
-                <div class="form-floating mb-3">
-                    <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="nazwa@example.com" />
-                    <label asp-for="Input.Email" class="form-label">Email</label>
-                    <span asp-validation-for="Input.Email" class="text-danger"></span>
-                </div>
+                    <form id="account" method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 py-2 small mb-3" role="alert"></div>
 
-                <div class="form-floating mb-3">
-                    <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
-                    <label asp-for="Input.Password" class="form-label">Hasło</label>
-                    <span asp-validation-for="Input.Password" class="text-danger"></span>
-                </div>
+                        <!-- Adres e-mail -->
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label fw-semibold small text-muted mb-1">Adres e-mail</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-muted border-end-0">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input asp-for="Input.Email"
+                                       class="form-control border-start-0 ps-0"
+                                       autocomplete="username"
+                                       aria-required="true"
+                                       placeholder="nazwa@example.com" />
+                            </div>
+                            <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                        </div>
 
-                <div class="checkbox mb-3">
-                    <label asp-for="Input.RememberMe" class="form-label">
-                        <input class="form-check-input" asp-for="Input.RememberMe" />
-                        Zapamiętaj mnie
-                    </label>
-                </div>
+                        <!-- Hasło -->
+                        <div class="mb-3">
+                            <label asp-for="Input.Password" class="form-label fw-semibold small text-muted mb-1">Hasło</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-muted border-end-0">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input asp-for="Input.Password"
+                                       id="loginPasswordInput"
+                                       class="form-control border-start-0 border-end-0 ps-0"
+                                       autocomplete="current-password"
+                                       aria-required="true"
+                                       placeholder="Wprowadź hasło..." />
+                                <button type="button"
+                                        class="btn bg-white border border-start-0 text-muted"
+                                        id="toggleLoginPassword"
+                                        aria-label="Pokaż lub ukryj hasło"
+                                        tabindex="-1">
+                                    <i class="bi bi-eye" id="toggleLoginPasswordIcon"></i>
+                                </button>
+                            </div>
+                            <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                        </div>
 
-                <div>
-                    <button id="login-submit" type="submit" class="w-100 btn btn-lg btn-primary">Zaloguj się</button>
+                        <!-- Zapamiętaj mnie -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" asp-for="Input.RememberMe" />
+                                <label class="form-check-label small text-muted" asp-for="Input.RememberMe">
+                                    Zapamiętaj mnie
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Przycisk logowania -->
+                        <button id="login-submit" type="submit" class="btn btn-accent w-100 py-2 fw-semibold">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Zaloguj się
+                        </button>
+
+                        <!-- Odnośnik do rejestracji -->
+                        <div class="text-center mt-4 pt-3 border-top">
+                            <span class="text-muted small">Nie masz jeszcze konta czytelnika?</span>
+                            <a asp-page="./Register" class="small fw-semibold text-decoration-none ms-1">
+                                Zarejestruj się
+                            </a>
+                        </div>
+                    </form>
                 </div>
-            </form>
-        </section>
+            </div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const toggleBtn = document.getElementById("toggleLoginPassword");
+            const passwordInput = document.getElementById("loginPasswordInput");
+            const toggleIcon = document.getElementById("toggleLoginPasswordIcon");
+
+            if (!toggleBtn || !passwordInput || !toggleIcon) return;
+
+            toggleBtn.addEventListener("click", function () {
+                const isPassword = passwordInput.type === "password";
+                passwordInput.type = isPassword ? "text" : "password";
+                toggleIcon.classList.toggle("bi-eye", !isPassword);
+                toggleIcon.classList.toggle("bi-eye-slash", isPassword);
+            });
+        });
+    </script>
 }

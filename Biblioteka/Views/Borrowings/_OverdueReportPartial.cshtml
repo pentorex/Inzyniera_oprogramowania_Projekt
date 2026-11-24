@@ -3,19 +3,141 @@
 @{
     var today = DateTime.UtcNow.Date;
     decimal dailyRate = ViewBag.DailyFineRate ?? 0.50m;
+    int count = Model.Count();
+    decimal totalViewFine = Model.Sum(b => b.ReturnDate.HasValue ? b.FineAmount : b.CalculateFine(dailyRate));
 }
 
-<div class="card shadow-sm border-0">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0 fw-bold">
-            <i class="bi bi-table me-2 text-danger"></i>Pozycje w raporcie (@Model.Count())
-        </h5>
-        <span class="badge bg-light text-dark border">Suma w widoku: @Model.Sum(b => b.ReturnDate.HasValue ? b.FineAmount : b.CalculateFine(dailyRate)).ToString("0.00") zł</span>
+<!-- Pasek podsumowania widoku -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 px-1">
+    <span class="text-muted small">
+        Pozycje w raporcie: <strong class="text-dark">@count</strong>
+    </span>
+    <span class="badge bg-accent-soft px-3 py-2">
+        Suma w widoku: <strong>@totalViewFine.ToString("0.00") zł</strong>
+    </span>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card border-0 p-5 text-center text-muted">
+        <i class="bi bi-emoji-smile fs-1 d-block mb-2 text-success"></i>
+        <h5 class="fw-bold text-dark">Brak zaległości</h5>
+        <p class="mb-0 small">Brak przetrzymanych egzemplarzy ani naliczonych kar spełniających wybrane kryteria.</p>
     </div>
-    <div class="card-body p-0">
+}
+else
+{
+    <!-- Widok kart na urządzenia mobilne i tablety (< lg, ukrywany przy wydruku) -->
+    <div class="d-lg-none d-print-none d-flex flex-column gap-3">
+        @foreach (var item in Model)
+        {
+            var isReturned = item.ReturnDate.HasValue;
+            var effectiveDate = item.ReturnDate?.Date ?? today;
+            var overdueDays = Math.Max(0, (effectiveDate - item.DueDate.Date).Days);
+            var fine = isReturned ? item.FineAmount : item.CalculateFine(dailyRate);
+            var fineFormatted = fine.ToString("0.00");
+            var book = item.BookCopy?.Book;
+            var readerName = item.User != null && (!string.IsNullOrWhiteSpace(item.User.FirstName) || !string.IsNullOrWhiteSpace(item.User.LastName))
+            ? $"{item.User.FirstName} {item.User.LastName}"
+            : null;
+            var borderClass = !isReturned ? "border-danger" : "border-secondary";
+
+            <div class="card border-0 border-start border-4 @borderClass">
+                <div class="card-body p-3">
+                    <!-- Czytelnik i nr inwentarzowy -->
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <div>
+                            @if (!string.IsNullOrEmpty(readerName))
+                            {
+                                <div class="fw-bold text-dark">@readerName</div>
+                            }
+                            <div class="small text-muted">
+                                <i class="bi bi-envelope me-1"></i>@(item.User?.Email ?? "Brak e-maila")
+                            </div>
+                        </div>
+
+                        <code class="small fw-semibold text-primary bg-primary-soft px-2 py-1 rounded flex-shrink-0">
+                            @(item.BookCopy?.InventoryNumber ?? $"#{item.BookCopyId}")
+                        </code>
+                    </div>
+
+                    <!-- Tytuł książki -->
+                    <div class="mb-2">
+                        @if (book != null)
+                        {
+                            <a asp-controller="Books" asp-action="Details" asp-route-id="@book.Id"
+                               class="fw-semibold text-decoration-none text-primary">
+                                <i class="bi bi-book me-1"></i>@book.Title
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="fw-semibold text-muted">Nieznany tytuł</span>
+                        }
+                    </div>
+
+                    <!-- Daty, opóźnienie i kwota kary -->
+                    <div class="row g-2 small py-2 border-top border-bottom my-2">
+                        <div class="col-4">
+                            <span class="text-muted d-block">Termin zwrotu</span>
+                            <span class="fw-semibold">@item.DueDate.ToString("dd.MM.yyyy")</span>
+                        </div>
+                        <div class="col-4">
+                            <span class="text-muted d-block">Opóźnienie</span>
+                            <span class="badge @(overdueDays > 14 ? "bg-danger" : "bg-warning text-dark")">
+                                @overdueDays @(overdueDays == 1 ? "dzień" : "dni")
+                            </span>
+                        </div>
+                        <div class="col-4">
+                            <span class="text-muted d-block">Naliczona kara</span>
+                            <span class="fw-bold text-danger">@fineFormatted zł</span>
+                        </div>
+                    </div>
+
+                    <!-- Status i przycisk rozliczenia -->
+                    <div class="d-flex justify-content-between align-items-center gap-2 pt-1">
+                        <div>
+                            @if (!isReturned)
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-clock-history me-1"></i>Przetrzymana
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check2-circle me-1"></i>Zwrócona (@item.ReturnDate?.ToString("dd.MM.yyyy"))
+                                </span>
+                            }
+                        </div>
+
+                        @if (!isReturned)
+                        {
+                            <form asp-action="ReturnBook" method="post" class="m-0"
+                                  onsubmit="return confirm('Potwierdzić zwrot książki i naliczenie kary @fineFormatted zł?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="returnUrl" value="@Url.Action("OverdueReport", "Borrowings")" />
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="bi bi-box-arrow-in-down me-1"></i>Zwróć i rozlicz
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="text-muted small">Rozliczono</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Widok tabeli na większe ekrany (>= lg) oraz zawsze do druku -->
+    <div class="card border-0 d-none d-lg-block d-print-block">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead>
                     <tr>
                         <th>Czytelnik</th>
                         <th>Książka i egzemplarz</th>
@@ -28,21 +150,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (!Model.Any())
-                    {
-                        <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
-                                <i class="bi bi-emoji-smile fs-3 d-block mb-2 text-success"></i>
-                                Brak zaległości ani naliczonych kar spełniających wybrane kryteria.
-                            </td>
-                        </tr>
-                    }
                     @foreach (var item in Model)
                     {
                         var isReturned = item.ReturnDate.HasValue;
                         var effectiveDate = item.ReturnDate?.Date ?? today;
                         var overdueDays = Math.Max(0, (effectiveDate - item.DueDate.Date).Days);
                         var fine = isReturned ? item.FineAmount : item.CalculateFine(dailyRate);
+                        var fineFormatted = fine.ToString("0.00");
                         var book = item.BookCopy?.Book;
                         var readerName = item.User != null && (!string.IsNullOrWhiteSpace(item.User.FirstName) || !string.IsNullOrWhiteSpace(item.User.LastName))
                         ? $"{item.User.FirstName} {item.User.LastName}"
@@ -52,19 +166,27 @@
                             <td>
                                 @if (!string.IsNullOrEmpty(readerName))
                                 {
-                                    <div class="fw-bold">@readerName</div>
+                                    <div class="fw-bold text-dark">@readerName</div>
                                 }
                                 <div class="small text-muted">@(item.User?.Email ?? "Brak e-maila")</div>
                             </td>
                             <td>
                                 @if (book != null)
                                 {
-                                    <a asp-controller="Books" asp-action="Details" asp-route-id="@book.Id" class="fw-bold text-decoration-none text-dark">
+                                    <a asp-controller="Books" asp-action="Details" asp-route-id="@book.Id"
+                                       class="fw-bold text-decoration-none text-dark">
                                         @book.Title
                                     </a>
                                 }
-                                <div class="small text-muted">
-                                    Nr inw.: <code>@(item.BookCopy?.InventoryNumber ?? $"#{item.BookCopyId}")</code>
+                                else
+                                {
+                                    <span class="fw-bold text-muted">Nieznany tytuł</span>
+                                }
+                                <div class="small text-muted mt-1">
+                                    Nr inw.:
+                                    <code class="fw-semibold text-primary bg-primary-soft px-2 py-0 rounded">
+                                        @(item.BookCopy?.InventoryNumber ?? $"#{item.BookCopyId}")
+                                    </code>
                                 </div>
                             </td>
                             <td>@item.BorrowDate.ToString("dd.MM.yyyy")</td>
@@ -75,7 +197,7 @@
                                 </span>
                             </td>
                             <td class="fw-bold text-danger fs-6">
-                                @fine.ToString("0.00") zł
+                                @fineFormatted zł
                             </td>
                             <td>
                                 @if (!isReturned)
@@ -86,7 +208,7 @@
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
                                         <i class="bi bi-check2-circle me-1"></i>Zwrócona (@item.ReturnDate?.ToString("dd.MM.yyyy"))
                                     </span>
                                 }
@@ -95,7 +217,7 @@
                                 @if (!isReturned)
                                 {
                                     <form asp-action="ReturnBook" method="post" class="d-inline"
-                                          onsubmit="return confirm('Potwierdzić zwrot książki i naliczenie kary @fine.ToString("0.00") zł?');">
+                                          onsubmit="return confirm('Potwierdzić zwrot książki i naliczenie kary @fineFormatted zł?');">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <input type="hidden" name="returnUrl" value="@Url.Action("OverdueReport", "Borrowings")" />
@@ -115,4 +237,4 @@
             </table>
         </div>
     </div>
-</div>
+}
