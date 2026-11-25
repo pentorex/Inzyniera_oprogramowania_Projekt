@@ -1,0 +1,26 @@
+﻿@model string
+
+@if (!string.IsNullOrEmpty(Model))
+{
+    var isError = Model.StartsWith("Error", StringComparison.OrdinalIgnoreCase) ||
+                  Model.StartsWith("Błąd", StringComparison.OrdinalIgnoreCase);
+    var statusMessageClass = isError ? "danger" : "success";
+    var iconClass = isError ? "bi-exclamation-circle-fill" : "bi-check-circle-fill";
+
+    var displayMessage = Model switch
+    {
+        "Your profile has been updated" => "Twój profil został pomyślnie zaktualizowany.",
+        "Your password has been changed." => "Twoje hasło zostało pomyślnie zmienione.",
+        "Verification email sent. Please check your email." => "Wysłano wiadomość weryfikacyjną. Sprawdź swoją skrzynkę e-mail.",
+        "Confirmation link to change email sent. Please check your email." => "Wysłano link potwierdzający zmianę adresu e-mail. Sprawdź swoją skrzynkę.",
+        "Your email is unchanged." => "Twój adres e-mail pozostał bez zmian.",
+        "Error: Unexpected error when trying to set phone number." => "Błąd: Wystąpił nieoczekiwany problem podczas zapisywania numeru telefonu.",
+        _ => Model
+    };
+
+    <div class="alert alert-@statusMessageClass alert-dismissible fade show shadow-sm border-0 d-flex align-items-center mb-4" role="alert">
+        <i class="bi @iconClass me-2 flex-shrink-0"></i>
+        <div>@displayMessage</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zamknij"></button>
+    </div>
+}

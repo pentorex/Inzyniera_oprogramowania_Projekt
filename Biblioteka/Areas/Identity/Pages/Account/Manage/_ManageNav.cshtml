@@ -1,0 +1,87 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using Biblioteka.Models
+@inject SignInManager<ApplicationUser> SignInManager
+
+@{
+    var hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+    var activePage = ViewContext.RouteData.Values["page"]?.ToString() ?? string.Empty;
+
+    bool IsActive(params string[] pageNames) =>
+        pageNames.Any(p =>
+            activePage.EndsWith("/" + p, StringComparison.OrdinalIgnoreCase) ||
+            (p == "Index" && activePage.EndsWith("/Manage", StringComparison.OrdinalIgnoreCase)));
+
+    string GetLinkStyle(bool active) =>
+        active ? "background-color: #2B4C7E; color: #FFFFFF;" : "color: #334155;";
+}
+
+<ul class="nav nav-pills flex-column gap-1">
+    <li class="nav-item">
+        @{
+            var isProfile = IsActive("Index");
+        }
+        <a class="nav-link d-flex align-items-center gap-2 fw-medium @(isProfile ? "active" : "")"
+           style="@GetLinkStyle(isProfile)"
+           id="profile" asp-page="./Index">
+            <i class="bi bi-person"></i>
+            <span>Profil</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        @{
+            var isEmail = IsActive("Email");
+        }
+        <a class="nav-link d-flex align-items-center gap-2 fw-medium @(isEmail ? "active" : "")"
+           style="@GetLinkStyle(isEmail)"
+           id="email" asp-page="./Email">
+            <i class="bi bi-envelope"></i>
+            <span>Adres e-mail</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        @{
+            var isPassword = IsActive("ChangePassword", "SetPassword");
+        }
+        <a class="nav-link d-flex align-items-center gap-2 fw-medium @(isPassword ? "active" : "")"
+           style="@GetLinkStyle(isPassword)"
+           id="change-password" asp-page="./ChangePassword">
+            <i class="bi bi-key"></i>
+            <span>Zmiana hasła</span>
+        </a>
+    </li>
+    @if (hasExternalLogins)
+    {
+        var isExternal = IsActive("ExternalLogins");
+        <li id="external-logins" class="nav-item">
+            <a id="external-login"
+               class="nav-link d-flex align-items-center gap-2 fw-medium @(isExternal ? "active" : "")"
+               style="@GetLinkStyle(isExternal)"
+               asp-page="./ExternalLogins">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span>Logowania zewnętrzne</span>
+            </a>
+        </li>
+    }
+    <li class="nav-item">
+        @{
+            var isTwoFactor = IsActive("TwoFactorAuthentication", "EnableAuthenticator", "GenerateRecoveryCodes", "ResetAuthenticator", "Disable2fa", "ShowRecoveryCodes");
+        }
+        <a class="nav-link d-flex align-items-center gap-2 fw-medium @(isTwoFactor ? "active" : "")"
+           style="@GetLinkStyle(isTwoFactor)"
+           id="two-factor" asp-page="./TwoFactorAuthentication">
+            <i class="bi bi-shield-check"></i>
+            <span>Weryfikacja dwuetapowa</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        @{
+            var isPersonalData = IsActive("PersonalData", "DownloadPersonalData", "DeletePersonalData");
+        }
+        <a class="nav-link d-flex align-items-center gap-2 fw-medium @(isPersonalData ? "active" : "")"
+           style="@GetLinkStyle(isPersonalData)"
+           id="personal-data" asp-page="./PersonalData">
+            <i class="bi bi-file-earmark-person"></i>
+            <span>Dane osobowe</span>
+        </a>
+    </li>
+</ul>
