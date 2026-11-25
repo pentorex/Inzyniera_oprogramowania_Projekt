@@ -1,0 +1,57 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Profil";
+    ViewData["ActivePage"] = ManageNavPages.Index;
+}
+
+<div class="mb-4">
+    <h3 class="h5 fw-bold mb-1">@ViewData["Title"]</h3>
+    <p class="text-muted small mb-0">Zarządzaj swoimi podstawowymi danymi kontaktowymi w systemie bibliotecznym</p>
+</div>
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <form id="profile-form" method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 py-2 small mb-3" role="alert"></div>
+
+            <!-- Nazwa użytkownika (zablokowana) -->
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label fw-semibold small text-muted mb-1">Nazwa użytkownika (e-mail)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted border-end-0">
+                        <i class="bi bi-person-badge"></i>
+                    </span>
+                    <input asp-for="Username" class="form-control bg-light border-start-0 ps-0" disabled />
+                </div>
+                <div class="form-text small text-muted">
+                    Login jest powiązany z Twoim adresem e-mail i nie można go edytować w tym miejscu.
+                </div>
+            </div>
+
+            <!-- Numer telefonu -->
+            <div class="mb-4">
+                <label asp-for="Input.PhoneNumber" class="form-label fw-semibold small text-muted mb-1">Numer telefonu</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white text-muted border-end-0">
+                        <i class="bi bi-telephone"></i>
+                    </span>
+                    <input asp-for="Input.PhoneNumber"
+                           class="form-control border-start-0 ps-0"
+                           placeholder="np. +48 123 456 789" />
+                </div>
+                <span asp-validation-for="Input.PhoneNumber" class="text-danger small"></span>
+            </div>
+
+            <button id="update-profile-button" type="submit" class="btn btn-accent px-4 py-2 fw-semibold">
+                <i class="bi bi-check2-circle me-1"></i>Zapisz zmiany
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

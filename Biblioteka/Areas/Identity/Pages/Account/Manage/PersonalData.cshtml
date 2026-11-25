@@ -1,0 +1,60 @@
+﻿@page
+@model PersonalDataModel
+@{
+    ViewData["Title"] = "Dane osobowe";
+    ViewData["ActivePage"] = ManageNavPages.PersonalData;
+}
+
+<div class="mb-4">
+    <h3 class="h5 fw-bold mb-1">@ViewData["Title"]</h3>
+    <p class="text-muted small mb-0">Pobierz kopię swoich danych zgromadzonych w systemie lub trwale usuń swoje konto</p>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <!-- Eksport danych -->
+        <div class="p-3 p-sm-4 rounded-3 border bg-light bg-opacity-50 mb-4">
+            <div class="d-flex align-items-start gap-3">
+                <div class="bg-primary-soft rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width: 42px; height: 42px; font-size: 1.2rem;">
+                    <i class="bi bi-file-earmark-arrow-down"></i>
+                </div>
+                <div>
+                    <h4 class="h6 fw-bold mb-1">Pobierz swoje dane</h4>
+                    <p class="text-muted small mb-3">
+                        Twoje konto zawiera dane osobowe, które podałeś podczas rejestracji i korzystania z biblioteki. Możesz pobrać ich kopię w formacie pliku JSON.
+                    </p>
+                    <form id="download-data" asp-page="DownloadPersonalData" method="post">
+                        <button class="btn btn-primary px-4 fw-semibold" type="submit">
+                            <i class="bi bi-download me-1"></i>Pobierz dane
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strefa niebezpieczna: Usunięcie konta -->
+        <div class="p-3 p-sm-4 rounded-3 border border-start border-4"
+             style="border-left-color: #E85D4A !important; background-color: #FFF9F8;">
+            <div class="d-flex align-items-start gap-3">
+                <div class="rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width: 42px; height: 42px; font-size: 1.2rem; background-color: rgba(232, 93, 74, 0.14); color: #E85D4A;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div>
+                    <h4 class="h6 fw-bold text-dark mb-1">Trwałe usunięcie konta</h4>
+                    <p class="text-muted small mb-3">
+                        Usunięcie tych danych spowoduje <strong>trwałe i nieodwracalne zamknięcie Twojego konta</strong> w systemie bibliotecznym. Operacji tej nie można cofnąć.
+                    </p>
+                    <a id="delete" asp-page="DeletePersonalData" class="btn btn-outline-danger px-4 fw-semibold">
+                        <i class="bi bi-trash3 me-1"></i>Usuń konto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
